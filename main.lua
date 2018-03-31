@@ -232,6 +232,6 @@ function love.draw()
 
     -- game over
     if game.over then
-        love.graphics.print("Il n'y a aucun blocs à proximité...\nVous avez perdu.\nVotre score est de " ..ply.score, game.width / 3, game.height / 3)
+        love.graphics.print("No blocks in range...\nGame is over.\nYour score is " ..ply.score, game.width / 3, game.height / 3)
     end
 end
