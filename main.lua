@@ -1,21 +1,20 @@
 require "tools"
 require "menu"
+require "simple-slider"
+require "game"
 
 objects = {}
 objects.objects = {}
 objects.particles = {}
 
 game = {}
-
 ply = {}
 
 function love.load()
-    menuFont = love.graphics.newFont( "Montserrat-Regular.ttf", 80 )
-    gameFont = love.graphics.newFont( "Montserrat-Regular.ttf", 12 )
+    gameFont = love.graphics.newFont( "data/Montserrat-Regular.ttf", 12 )
 
     canPush = true
     canPushTimer = 0
-    gameOver = false
     minParts, maxParts = 10, 20
 
     objects.count = 0
@@ -25,6 +24,7 @@ function love.load()
     objects.w = 20
     objects.closestAmount = 0
     ply.score = 0
+    ply.bestScore = 0
                     --  w    h
     love.window.setMode(480, 640)
     love.window.setTitle("Dot destroyer - A game by Quôzul")
@@ -44,17 +44,47 @@ function love.load()
     sounds.shoot = love.audio.newSource("data/shoot.ogg", "stream")
     sounds.wall = love.audio.newSource("data/wallhit.ogg", "stream")
     sounds.object = love.audio.newSource("data/objecthit.ogg", "stream")
+    -- images
+    images = {}
+    images.pause = love.graphics.newImage("data/pause.png")
+    images.cursor = love.graphics.newImage("data/cursor.png")
+    images.menu = love.graphics.newImage("data/menu.png")
 
     love.mouse.setVisible(false)
 
     game.start = false
-    game.settings = true
-             -- x   y   size min max default name    minname  maxname
-    slider.add(50, 200, 200, 5, 30, 20, "Difficulty", "Hard", "Easy")
-    slider.add(50, 400, 200, 0, 150, 15, "Particles", "None", "Laggy")
+    game.settings = false
+
+    load()
+end
+
+function objects:add()
+    obj = {}
+    obj.id = love.math.random(0, 32767)
+    obj.x = love.math.random(objects.w + game.border, game.width - game.border - objects.w)
+    obj.y = love.math.random(objects.w + game.border, game.height - game.border - objects.w)
+    obj.golden = love.math.random(0, 1)
+
+    objects.count = self.count + 1
+    table.insert(self.objects, obj)
+end
+
+function createParticles(golden, x, y)
+    part = {}
+    part.golden = golden
+    part.x = love.math.random(x - 10, x + 10)
+    part.y = love.math.random(y - 10, y + 10)
+
+    part.xspeed = randomFloat(-2, 2, 6)
+    part.yspeed = randomFloat(-2, 2, 6)
+    part.age = 255
+
+    table.insert(objects.particles, part)
 end
 
 function love.update(dt)
+    if ply.score > ply.bestScore then ply.bestScore = ply.score end
+
     if game.start then
         game.width, game.height, game.flags = love.window.getMode()
 
@@ -62,64 +92,8 @@ function love.update(dt)
             objects:add()
         end
 
-        if love.mouse.isDown(1) and canPush then
-            for e,i in ipairs(objects.objects) do
-                if objects.idClosest == i.id then
-                    table.remove(objects.objects, e)
-                    objects.count = objects.count - 1
-
-                    ply.xspeed = i.x - ply.x
-                    ply.yspeed = i.y - ply.y
-
-                    if i.golden == 1 then
-                        ply.score = ply.score + 1
-
-                        for n=10,love.math.random(minParts, maxParts) do
-                                createParticles(true, i.x, i.y)
-                        end
-                    else
-                        for n=10,love.math.random(minParts, maxParts) do
-                            createParticles(false, i.x, i.y)
-                        end
-                    end
-
-                    love.audio.stop(sounds.shoot)
-                    love.audio.stop(sounds.object)
-                    love.audio.play(sounds.shoot)
-                    love.audio.play(sounds.object)
-                end
-            end
-
-            canPush = false
-            canPushTimer = 0
-        end
-
-        -- movements and collisions
-        ply.x = ply.x + ply.xspeed
-        ply.y = ply.y + ply.yspeed
-
-        ply.xspeed = ply.xspeed / 1.3
-        ply.yspeed = ply.yspeed / 1.3
-
-        if ply.x >= game.width - game.border then
-            ply.xspeed = -ply.xspeed
-            ply.x = game.width - game.border
-            hitWall()
-        elseif ply.x <= game.border then
-            ply.xspeed = -ply.xspeed
-            ply.x = game.border
-            hitWall()
-        end
-
-        if ply.y >= game.height - game.border then
-            ply.yspeed = -ply.yspeed
-            ply.y = game.height - game.border
-            hitWall()
-        elseif ply.y <= game.border then
-            ply.yspeed = -ply.yspeed
-            ply.y = game.border
-            hitWall()
-        end
+    removeObject()
+    movements()
 
         canPushTimer = canPushTimer + 1
         if canPushTimer >= 20 then
@@ -189,40 +163,36 @@ function love.update(dt)
     else
         menu()
     end
+
+    if love.keyboard.isDown("o") then
+        save()
+    end
 end
 
-function objects:add()
-    obj = {}
-    obj.id = love.math.random(0, 32767)
-    obj.x = love.math.random(objects.w + game.border, game.width - game.border - objects.w)
-    obj.y = love.math.random(objects.w + game.border, game.height - game.border - objects.w)
-    obj.golden = love.math.random(0, 1)
+function love.mousepressed(x, y, button, isTouch)
+    if button == 1 and canPush then
+        for _,i in ipairs(objects.objects) do
+            if objects.idClosest == i.id then
 
-    objects.count = self.count + 1
-    table.insert(self.objects, obj)
+                ply.xspeed = i.x - ply.x
+                ply.yspeed = i.y - ply.y
+
+                love.audio.stop(sounds.shoot)
+                love.audio.play(sounds.shoot)
+            end
+        end
+
+        canPush = false
+        canPushTimer = 0
+    end
 end
-
-function createParticles(golden, x, y)
-    part = {}
-    part.golden = golden
-    part.x = love.math.random(x - 10, x + 10)
-    part.y = love.math.random(y - 10, y + 10)
-
-    part.xspeed = randomFloat(-2, 2, 6)
-    part.yspeed = randomFloat(-2, 2, 6)
-    part.age = 255
-
-    table.insert(objects.particles, part)
-end
-
-function hitWall() love.audio.stop(sounds.wall) love.audio.play(sounds.wall) end
 
 function love.draw()
     love.graphics.setFont( gameFont )
     love.graphics.setBackgroundColor(23, 32, 42)
 
     if game.start then
-        love.graphics.draw(love.graphics.newImage("data/pause.png"), game.width - 32, 6)
+        love.graphics.draw(images.pause, game.width - 32, 6)
 
         love.graphics.setColor(44, 62, 80)
         love.graphics.rectangle("fill", game.border, game.border, game.width - game.border * 2, game.height - game.border * 2)
@@ -274,5 +244,19 @@ function love.draw()
         drawmenu()
     end
     love.graphics.setColor(255, 255, 255)
-    love.graphics.draw(love.graphics.newImage("data/cursor.png"), love.mouse.getX() - 4, love.mouse.getY() - 4)
+    love.graphics.draw(images.cursor, love.mouse.getX() - 4, love.mouse.getY() - 4)
+end
+
+function save()
+    save = {}
+    save.objectsLimit = objects.limit
+    save.bestScore = ply.bestScore
+    save.particles = (minParts + maxParts) / 2
+    love.filesystem.write( "save.sav", table.show(save) )
+end
+
+function load()
+    if love.filesystem.exists( "save.sav" ) then
+        loaded = love.filesystem.read( "save.sav" )
+    end
 end
