@@ -37,37 +37,11 @@ function buttonHover(x, y, w, h)
     end
 end
 
-function slider.add(x, y, size, minValue, maxValue, defaultValue, name, minName, maxName)
-    s = {}
-    s.x, s.y = x, y
-    s.size = size
-    s.min, s.max, s.value = minValue, maxValue, defaultValue
-    s.name, s.minname, s.maxname = name, minName, maxName
-    table.insert(slider.sliders, s)
+function round(num, numDecimalPlaces)
+  local mult = 10^(numDecimalPlaces or 0)
+  return math.floor(num * mult + 0.5) / mult
 end
 
-function slider.update()
-    for _,i in pairs(slider.sliders) do
-        if buttonHover(i.x, i.y - 15, i.size - i.x, 15) and click() then
-            i.value = love.mouse.getX() - i.x
-        end
-    end
-end
-
-function slider.draw()
-    for _,i in pairs(slider.sliders) do
-        local unit = i.size / i.max
-        local place = i.x + i.value
-        love.graphics.line(i.x, i.y, i.size, i.y)
-                                                 -- CURSOR
-                                    -- x        y          x         y
-        love.graphics.polygon("fill", place - 5, i.y - 15, place + 5, i.y - 15, place + 5, i.y - 5, place, i.y, place - 5, i.y - 5 )
-
-        love.graphics.print(i.value + i.min, i.size, i.y - 40) -- Display value
-
-
-        love.graphics.print(i.name, i.x, i.y - 40) -- Display name
-        love.graphics.print(i.minname, i.x, i.y + 5) -- Display minimum name
-        love.graphics.print(i.maxname, i.size, i.y + 5) -- Display maximum name
-    end
+function setColorRGB(r, g, b) -- This is used to keep 255 values from Love 0.10.2
+    love.graphics.setColor(r/255, g/255, b/255)
 end
