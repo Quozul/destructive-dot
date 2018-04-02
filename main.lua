@@ -1,7 +1,9 @@
 require "tools"
 require "menu"
-require "simple-slider"
+require "library/simple-slider"
 require "game"
+local bitser = require 'library/bitser'
+local serialize = require 'library/ser'
 
 objects = {}
 objects.objects = {}
@@ -11,7 +13,7 @@ game = {}
 ply = {}
 
 function love.load()
-    gameFont = love.graphics.newFont( "data/Montserrat-Regular.ttf", 12 )
+    gameFont = love.graphics.newFont( "data/Montserrat-Regular.ttf", 12 ) -- Font from Google Font
 
     canPush = true
     canPushTimer = 0
@@ -27,7 +29,7 @@ function love.load()
     ply.bestScore = 0
                     --  w    h
     love.window.setMode(480, 640)
-    love.window.setTitle("Dot destroyer - A game by Quôzul")
+    love.window.setTitle("Destructive Dot - A game by Quôzul")
     game = {}
     game.width, game.height, game.flags = love.window.getMode()
     game.border = 50
@@ -38,23 +40,28 @@ function love.load()
     ply.y = game.height / 2
     ply.xspeed = 0
     ply.yspeed = 0
+    ply.destructionSeries = 1
+    ply.radius = 10
 
     -- sounds
     sounds = {}
     sounds.shoot = love.audio.newSource("data/shoot.ogg", "stream")
     sounds.wall = love.audio.newSource("data/wallhit.ogg", "stream")
     sounds.object = love.audio.newSource("data/objecthit.ogg", "stream")
+    sounds.click = love.audio.newSource("data/click.ogg", "stream")
     -- images
     images = {}
     images.pause = love.graphics.newImage("data/pause.png")
     images.cursor = love.graphics.newImage("data/cursor.png")
     images.menu = love.graphics.newImage("data/menu.png")
 
+    icon = love.image.newImageData("icon.png")
+    love.window.setIcon(icon)
+
     love.mouse.setVisible(false)
 
     game.start = false
     game.settings = false
-
     load()
 end
 
@@ -92,8 +99,8 @@ function love.update(dt)
             objects:add()
         end
 
-    removeObject()
-    movements()
+        removeObject()
+        movements()
 
         canPushTimer = canPushTimer + 1
         if canPushTimer >= 20 then
@@ -157,15 +164,13 @@ function love.update(dt)
         if buttonHover(game.width - 32, 6, 21, 22) and click() then
             canPush = false
             canPushTimer = 0
+            love.audio.stop(sounds.click)
+            love.audio.play(sounds.click)
             game.start = false
         end
 
     else
         menu()
-    end
-
-    if love.keyboard.isDown("o") then
-        save()
     end
 end
 
@@ -189,52 +194,52 @@ end
 
 function love.draw()
     love.graphics.setFont( gameFont )
-    love.graphics.setBackgroundColor(23, 32, 42)
+    love.graphics.setBackgroundColor(23/255, 32/255, 42/255)
 
     if game.start then
         love.graphics.draw(images.pause, game.width - 32, 6)
 
-        love.graphics.setColor(44, 62, 80)
+        setColorRGB(44, 62, 80)
         love.graphics.rectangle("fill", game.border, game.border, game.width - game.border * 2, game.height - game.border * 2)
 
-        love.graphics.print("Score: " ..ply.score, 10, 10)
+        love.graphics.print("Score: " ..ply.score.. " Best Score: " ..ply.bestScore, 10, 10)
 
         -- draw particles
         for _,i in pairs(objects.particles) do
             if i.golden then
-                love.graphics.setColor(241, 196, 15, i.age)
+                setColorRGB(241, 196, 15, i.age)
             else
-                love.graphics.setColor(253, 254, 254, i.age)
+                setColorRGB(253, 254, 254, i.age)
             end
             love.graphics.rectangle("fill", i.x - 1, i.y - 1, 2, 2)
-            love.graphics.setColor(255, 255, 255)
+            setColorRGB(255, 255, 255)
         end
 
         for _,i in pairs(objects.objects) do
             -- draw lines
             if vector.lengh(ply.x, ply.y, i.x, i.y) <= 128 then
-                love.graphics.setColor(255, 255, 255, 127)
+                setColorRGB(255, 255, 255, 127)
                 vector.draw(ply.x, ply.y, i.x, i.y)
             end
 
             if objects.idClosest == i.id then
-                love.graphics.setColor(255, 255, 255)
+                setColorRGB(255, 255, 255)
                 vector.draw(ply.x, ply.y, i.x, i.y)
             end
 
             -- draw bricks
             if i.golden == 1 then
-                love.graphics.setColor(241, 196, 15)
+                setColorRGB(241, 196, 15)
             else
-                love.graphics.setColor(253, 254, 254)
+                setColorRGB(253, 254, 254)
             end
             love.graphics.rectangle("fill", i.x - 10, i.y - 10, objects.w, objects.w)
 
-            love.graphics.setColor(255, 255, 255)
+            setColorRGB(255, 255, 255)
         end
 
-        love.graphics.setColor(171, 178, 185)
-        love.graphics.circle("fill", ply.x, ply.y, 10) -- draw player
+        setColorRGB(171, 178, 185)
+        love.graphics.circle("fill", ply.x, ply.y, ply.radius) -- draw player
 
         -- game over
         if game.over then
@@ -243,20 +248,35 @@ function love.draw()
     else
         drawmenu()
     end
-    love.graphics.setColor(255, 255, 255)
+    setColorRGB(255, 255, 255)
     love.graphics.draw(images.cursor, love.mouse.getX() - 4, love.mouse.getY() - 4)
 end
 
-function save()
+-- Saving part
+
+function love.quit()
+    saving()
+end
+
+function saving()
     save = {}
     save.objectsLimit = objects.limit
     save.bestScore = ply.bestScore
     save.particles = (minParts + maxParts) / 2
-    love.filesystem.write( "save.sav", table.show(save) )
+    if not love.filesystem.getInfo("quozul-games") then love.filesystem.createDirectory("quozul-games") end
+    love.filesystem.write("quozul-games/destructive-dot.sav", serialize(save))
 end
 
 function load()
-    if love.filesystem.exists( "save.sav" ) then
-        loaded = love.filesystem.read( "save.sav" )
+    if not love.filesystem.getInfo( "quozul-games/destructive-dot.sav" ) then
+        saving()
+        love.event.quit("restart")
+    end
+    if love.filesystem.getInfo( "quozul-games/destructive-dot.sav" ) then
+        chunk = love.filesystem.load("quozul-games/destructive-dot.sav")
+        loaded = chunk()
+        minParts, maxParts = loaded.particles - 5, loaded.particles + 5
+        objects.limit = loaded.objectsLimit
+        ply.bestScore = loaded.bestScore
     end
 end
