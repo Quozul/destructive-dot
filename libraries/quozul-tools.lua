@@ -20,7 +20,28 @@ function setColorRGB(r, g, b) love.graphics.setColor(r/255, g/255, b/255) end
 function setColorRGBa(r, g, b, a) love.graphics.setColor(r/255, g/255, b/255, a/255) end
 
 -- Mouses things
-function click() if love.mouse.isDown(1) then return true end end
+
+-- This must be in update function to work
+click = {}
+click.time = 0
+
+function click.isDown()
+    if love.mouse.isDown(1) then
+        return true
+    end
+end
+function click.update()
+    if click.isDown() then
+        click.time = click.time + 1
+    else
+        click.time = 0
+    end
+end
+function click.isNew()
+    if click.isDown() and click.time <= 1 then
+        return true
+    end
+end
 
 function buttonHover(x, y, w, h)
     mouse = {}
@@ -40,4 +61,9 @@ function randomFloat(min, max, precision)
 	local offset = range * num
 	local randomnum = min + offset
 	return math.floor(randomnum * math.pow(10, precision) + 0.5) / math.pow(10, precision)
+end
+
+function round(num, numDecimalPlaces)
+    local mult = 10^(numDecimalPlaces or 0)
+    return math.floor(num * mult + 0.5) / mult
 end

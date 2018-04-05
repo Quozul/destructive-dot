@@ -16,9 +16,7 @@ function newButton(x, y, width, height)
 end
 
 function button:update()
-    local down = love.mouse.isDown(1)
-
-    if down and not self.value and buttonHover(self.x, self.y, self.width, self.height) then
+    if click.isNew() and not self.value and buttonHover(self.x, self.y, self.width, self.height) then
         self.value = true
         love.audio.stop(sounds.uiClick)
         love.audio.play(sounds.uiClick)
@@ -32,11 +30,8 @@ function button:draw(name)
 
     love.graphics.setColor(0, 0, 0)
 
-    love.graphics.setFont(Font24)
-    love.graphics.print(name, self.x + (self.width / 2 - Font24:getWidth(name) / 2), self.y + (self.height / 2 - Font24:getHeight(name) / 2))
-    love.graphics.setFont(Font12)
+    local Font = love.graphics.getFont()
+    love.graphics.print(name, self.x + (self.width / 2 - Font:getWidth(name) / 2), self.y + (self.height / 2 - Font:getHeight(name) / 2))
 end
 
-function button:isPressed()
-    return self.value
-end
+function button:isPressed() return self.value end
