@@ -2,19 +2,16 @@ require "objects"
 require "game"
 require "menu"
 
-require "libraries/quozul-tools"
+require "libraries/quozul-tools" -- By Quôzul
 require "libraries/simple-slider"
-require "libraries/simple-button"
+require "libraries/simple-button" -- By Quôzul
+require "libraries/simple-checkbox" -- By Quôzul
 local serialize = require 'libraries/ser'
 
 game = {}
 ply = {}
 
 function love.load()
-    -- Settings up the window
-    love.window.setMode(480, 640, {resizable=true, minwidth=480, minheight=640})
-    love.window.setTitle("Destructive Dot - A game by Quôzul")
-
     icon = love.image.newImageData("icon.png")
     love.window.setIcon(icon)
 
@@ -24,12 +21,11 @@ function love.load()
     Font24 = love.graphics.newFont("data/Montserrat-Regular.ttf", 24)
 
     -- Window variables
-    game.width, game.height = love.window.getMode()
+    game.width, game.height = 480, 640
     game.xBorder, game.yBorder = 20, 40
 
     -- Settings parameters
-    game.objectsLimit = 1
-    game.objectsCount = 0
+    game.objectsLimit = 15
     game.maxParticles = 15
 
     -- Gameplay
@@ -46,6 +42,20 @@ function love.load()
 
     ply.x, ply.y = game.width / 2, game.height / 2
     ply.xs, ply.ys = 0, 0
+
+    load()
+
+    -- Settings up the window
+    love.window.setMode(game.width, game.height, {resizable=true, minwidth=480, minheight=640})
+    love.window.setTitle("Destructive Dot - A game by Quôzul")
+
+    -- Menu identifier
+    game.play = false
+    game.menu = true
+    game.settings = false
+    game.over = false
+
+    game.objectsCount = 0
 
     -- Loading sounds
     sounds = {}
@@ -69,13 +79,15 @@ function love.load()
     settings = newButton(game.width / 2 - 100, game.height / 2 - 50, 200, 100)
     quit = newButton(game.width / 2 - 100, game.height / 2 + 100, 200, 100)
 
-    --load()
+    back = newButton(game.width - Font12:getWidth("← Back") * 2 - 10, 10, Font12:getWidth("← Back") * 2, Font12:getHeight("← Back") * 2)
 
-    -- Menu identifier
-    game.play = true
-    game.menu = false
-    game.settings = false
-    game.over = false
+    -- Sliders
+    difficultySlider = newSlider(game.width / 2, 100, 200, game.objectsLimit, 30, 5, {width=15, orientation='horizontal', track='roundrect', knob='circle'})
+    particlesSlider = newSlider(game.width / 2, 200, 200, game.maxParticles, 0, 150, {width=15, orientation='horizontal', track='roundrect', knob='circle'})
+
+    -- Checkboxes
+    fullscreen = newCheckbox(10, 10)
+
 end
 
 function love.mousepressed(x, y, button, isTouch)
@@ -92,11 +104,24 @@ function love.mousepressed(x, y, button, isTouch)
     end
 end
 
-function love.keypressed(key, scancode, isrepeat) if key == "escape" then love.event.quit() end end
+function love.keypressed(key, scancode, isrepeat)
+    if key == "escape" then
+        love.event.quit()
+    end
+end
 
 function love.update(dt)
+    click.update()
+
+    local windowWidth, windowHeight = love.window.getMode()
+
+    if game.width ~= windowWidth and game.height ~= windowHeight then
+        game.width, game.height = love.window.getMode()
+    end
+
     if game.play then gameUpdate()
-    elseif not game.play and not game.settings then menuUpdate() end
+    elseif not game.play and not game.settings then menuUpdate()
+    elseif not game.play and not game.menu and game.settings then settingsUpdate() end
     if game.over then gameOver() end
 end
 
@@ -111,6 +136,8 @@ function love.draw()
         drawParticles()
     elseif not game.play and game.menu and not game.settings then
         menuDraw()
+    elseif not game.play and not game.menu and game.settings then
+        settingsDraw()
     end
     if game.over and not game.menu and not game.settings then
         drawGameOver()
@@ -120,23 +147,18 @@ function love.draw()
     love.graphics.draw(images.cursor, love.mouse.getX(), love.mouse.getY())
 
     -- Debug
-    love.graphics.print(boolToNumber(game.play).." "..boolToNumber(game.menu).." "..boolToNumber(game.over), 10, 50)
+    --love.graphics.print(boolToNumber(game.play).." "..boolToNumber(game.menu).." "..boolToNumber(game.over), 10, 50)
 end
 
 function love.quit() save() end
 
 function save()
-    if not love.filesystem.getInfo("quozul-games") then love.filesystem.createDirectory("quozul-games") end
-    love.filesystem.write("quozul-games/destructive-dot.sav", serialize(game))
+    love.filesystem.write("save.sav", serialize(game))
 end
 
 function load()
-    if not love.filesystem.getInfo( "quozul-games/destructive-dot.sav" ) then
-        save()
-        love.event.quit("restart")
-    end
-    if love.filesystem.getInfo( "quozul-games/destructive-dot.sav" ) then
-        chunk = love.filesystem.load("quozul-games/destructive-dot.sav")
+    if love.filesystem.getInfo( "save.sav" ) then
+        chunk = love.filesystem.load("save.sav")
         game = chunk()
     end
 end

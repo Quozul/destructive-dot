@@ -1,5 +1,5 @@
 require "objects"
-require "libraries/button"
+require "libraries/simple-button"
 
 function gameUpdate()
     removeObject()
@@ -41,6 +41,8 @@ function gameUpdate()
 
     if not objectInReach() and playerSpeed(0.001) and ply.shots ~= 0 then game.over = true else game.over = false end
     if not objectInReach() and ply.shots == 0 then clearObjects() end
+
+    if buttonHover(game.width - 32, 6, 22, 21) and click.isNew() then game.menu = true end
 end
 
 function restart()
@@ -60,6 +62,7 @@ end
 function playerSpeed(v) if math.abs(ply.xs + ply.ys) <= v then return true end end
 
 function drawGame()
+    love.graphics.setFont(Font12)
     setColorRGB(44, 62, 80)
     love.graphics.rectangle("fill", game.xBorder, game.yBorder, game.width - game.xBorder * 2, game.height - game.yBorder * 2)
 
@@ -84,6 +87,7 @@ function gameOver()
 end
 
 function drawGameOver()
+    love.graphics.setFont(Font24)
     setColorRGB(0, 0, 0)
 
     love.graphics.setFont(Font24)

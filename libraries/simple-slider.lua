@@ -26,12 +26,11 @@ OTHER DEALINGS IN THE SOFTWARE.
 local slider = {}
 slider.__index = slider
 
-function newSlider(x, y, length, value, min, max, setter, style)
+function newSlider(x, y, length, value, min, max, style)
     local s = {}
     s.value = (value - min) / (max - min)
     s.min = min
     s.max = max
-    s.setter = setter
     s.x = x
     s.y = y
     s.length = length
@@ -83,8 +82,8 @@ function slider:update(mouseX, mouseY, mouseDown)
             self.ox = ox
             self.oy = oy
             self.grabbed = true
-            love.audio.stop(sounds.click)
-            love.audio.play(sounds.click)
+            love.audio.stop(sounds.uiClick)
+            love.audio.play(sounds.uiClick)
         end
     else
         self.grabbed = false
@@ -92,20 +91,17 @@ function slider:update(mouseX, mouseY, mouseDown)
 
     self.value = math.max(0, math.min(1, self.value))
 
-    if self.setter ~= nil then
-        self.setter(self.min + self.value * (self.max - self.min))
-    end
-
     self.wasDown = down
 end
 
 function slider:draw(name, minName, maxName)
     -- EDITED PART BY QUOZUL
+    local Font = love.graphics.getFont()
+
     value = round(self.min + self.value * (self.max - self.min), 0)
-    love.graphics.print(name, self.x - self.length/2 - gameFont:getWidth(name) - 20, self.y - gameFont:getHeight(name) / 2)
+    love.graphics.print(name, self.x - self.length/2 - Font:getWidth(name) - 20, self.y - Font:getHeight(name) / 2)
     love.graphics.print(minName, self.x - self.length/2, self.y + self.width)
-    love.graphics.print(maxName, self.x + self.length/2 - gameFont:getWidth(maxName), self.y + self.width)
-    love.graphics.print(value, self.x + self.length/2 - gameFont:getWidth(value), self.y - gameFont:getHeight(value) / 2)
+    love.graphics.print(maxName, self.x + self.length/2 - Font:getWidth(maxName), self.y + self.width)
     -- END OF EDITED PART
 
     if self.track == 'rectangle' then
