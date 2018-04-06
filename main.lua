@@ -1,282 +1,168 @@
-require "tools"
-require "menu"
-require "library/simple-slider"
+require "objects"
 require "game"
-local bitser = require 'library/bitser'
-local serialize = require 'library/ser'
+require "menu"
 
-objects = {}
-objects.objects = {}
-objects.particles = {}
+require "libraries/quozul-tools" -- By Quôzul
+require "libraries/simple-slider"
+require "libraries/simple-button" -- By Quôzul
+require "libraries/simple-checkbox" -- By Quôzul
+local serialize = require 'libraries/ser'
 
 game = {}
 ply = {}
 
 function love.load()
-    gameFont = love.graphics.newFont( "data/Montserrat-Regular.ttf", 12 ) -- Font from Google Font
+    icon = love.image.newImageData("icon.png")
+    love.window.setIcon(icon)
 
-    canPush = true
-    canPushTimer = 0
-    minParts, maxParts = 10, 20
+    love.mouse.setVisible(false) -- Hide cursor
 
-    objects.count = 0
-    objects.limit = 20
-    objects.lastSpacing = 128
-    objects.idClosest = 0
-    objects.w = 20
-    objects.closestAmount = 0
+    Font12 = love.graphics.newFont("data/Montserrat-Regular.ttf", 12) -- Font from Google Font
+    Font24 = love.graphics.newFont("data/Montserrat-Regular.ttf", 24)
+
+    -- Window variables
+    game.width, game.height = 480, 640
+    game.xBorder, game.yBorder = 20, 40
+
+    -- Settings parameters
+    game.objectsLimit = 15
+    game.maxParticles = 15
+
+    -- Gameplay
+    game.objectSize = 20 -- In pixels
+    game.playerRadius = 10 -- Radius of the ball in pixels
+    game.playerReach = 120 -- Reach in pixels
+    game.playerCooldown = 1 -- Cooldown in seconds
+
+    -- Player variables
     ply.score = 0
-    ply.bestScore = 0
-                    --  w    h
-    love.window.setMode(480, 640)
+    ply.destructionSeries = 1 -- Must be at least 1
+    ply.shots = 0 -- Number of shots done by the player
+    ply.canShoot = os.time() -- Define when the player can shoot
+
+    game.bestScore = 0
+
+    ply.x, ply.y = game.width / 2, game.height / 2
+    ply.xs, ply.ys = 0, 0
+
+    load()
+
+    -- Settings up the window
+    love.window.setMode(game.width, game.height, {resizable=true, minwidth=480, minheight=640})
     love.window.setTitle("Destructive Dot - A game by Quôzul")
-    game = {}
-    game.width, game.height, game.flags = love.window.getMode()
-    game.border = 50
+
+    -- Menu identifier
+    game.play = false
+    game.menu = true
+    game.settings = false
     game.over = false
-    game.overTries = 0
 
-    ply.x = game.width / 2
-    ply.y = game.height / 2
-    ply.xspeed = 0
-    ply.yspeed = 0
-    ply.destructionSeries = 1
-    ply.radius = 10
+    game.objectsCount = 0
 
-    -- sounds
+    -- Loading sounds
     sounds = {}
     sounds.shoot = love.audio.newSource("data/shoot.ogg", "stream")
-    sounds.wall = love.audio.newSource("data/wallhit.ogg", "stream")
-    sounds.object = love.audio.newSource("data/objecthit.ogg", "stream")
-    sounds.click = love.audio.newSource("data/click.ogg", "stream")
-    -- images
+    sounds.hitWall = love.audio.newSource("data/wallhit.ogg", "stream")
+    sounds.hitObject = love.audio.newSource("data/objecthit.ogg", "stream")
+    sounds.uiClick = love.audio.newSource("data/click.ogg", "stream")
+    sounds.explosion = love.audio.newSource("data/explosion.ogg", "stream")
+
+    -- Loading images
     images = {}
     images.pause = love.graphics.newImage("data/pause.png")
     images.cursor = love.graphics.newImage("data/cursor.png")
     images.menu = love.graphics.newImage("data/menu.png")
 
-    icon = love.image.newImageData("icon.png")
-    love.window.setIcon(icon)
+    -- Buttons
+    retry = newButton(game.width / 2 - 100, game.height / 2 - 150, 200, 100)
+    menu = newButton(game.width / 2 - 100, game.height / 2 + 50, 200, 100)
 
-    love.mouse.setVisible(false)
+    play = newButton(game.width / 2 - 100, game.height / 2 - 200, 200, 100)
+    settings = newButton(game.width / 2 - 100, game.height / 2 - 50, 200, 100)
+    quit = newButton(game.width / 2 - 100, game.height / 2 + 100, 200, 100)
 
-    game.start = false
-    game.settings = false
-    load()
-end
+    back = newButton(game.width - Font12:getWidth("← Back") * 2 - 10, 10, Font12:getWidth("← Back") * 2, Font12:getHeight("← Back") * 2)
 
-function objects:add()
-    obj = {}
-    obj.id = love.math.random(0, 32767)
-    obj.x = love.math.random(objects.w + game.border, game.width - game.border - objects.w)
-    obj.y = love.math.random(objects.w + game.border, game.height - game.border - objects.w)
-    obj.golden = love.math.random(0, 1)
+    -- Sliders
+    difficultySlider = newSlider(game.width / 2, 100, 200, game.objectsLimit, 30, 5, {width=15, orientation='horizontal', track='roundrect', knob='circle'})
+    particlesSlider = newSlider(game.width / 2, 200, 200, game.maxParticles, 0, 150, {width=15, orientation='horizontal', track='roundrect', knob='circle'})
 
-    objects.count = self.count + 1
-    table.insert(self.objects, obj)
-end
+    -- Checkboxes
+    fullscreen = newCheckbox(10, 10)
 
-function createParticles(golden, x, y)
-    part = {}
-    part.golden = golden
-    part.x = love.math.random(x - 10, x + 10)
-    part.y = love.math.random(y - 10, y + 10)
-
-    part.xspeed = randomFloat(-2, 2, 6)
-    part.yspeed = randomFloat(-2, 2, 6)
-    part.age = 255
-
-    table.insert(objects.particles, part)
-end
-
-function love.update(dt)
-    if ply.score > ply.bestScore then ply.bestScore = ply.score end
-
-    if game.start then
-        game.width, game.height, game.flags = love.window.getMode()
-
-        if objects.count <= objects.limit then
-            objects:add()
-        end
-
-        removeObject()
-        movements()
-
-        canPushTimer = canPushTimer + 1
-        if canPushTimer >= 20 then
-            canPush = true
-        end
-
-        -- select the closest object
-        for _,i in pairs(objects.objects) do
-            if vector.lengh(love.mouse.getX(), love.mouse.getY(), i.x, i.y) < objects.lastSpacing and vector.lengh(ply.x, ply.y, i.x, i.y) <= 128 then
-                objects.lastSpacing = vector.lengh(love.mouse.getX(), love.mouse.getY(), i.x, i.y)
-                objects.idClosest = i.id
-            elseif vector.lengh(love.mouse.getX(), love.mouse.getY(), i.x, i.y) < objects.lastSpacing and vector.lengh(ply.x, ply.y, i.x, i.y) > 128 then
-                objects.idClosest = 0
-            end
-
-            if vector.lengh(ply.x, ply.y, i.x, i.y) <= 128 then
-                objects.closestAmount = objects.closestAmount + 1
-            end
-        end
-
-        if objects.closestAmount <= 0 then
-            game.overTries = game.overTries + 1
-        else
-            game.overTries = 0
-        end
-
-        if game.overTries >= 10 then
-            game.over = true
-        else
-            game.over = false
-        end
-
-        if game.overTries >= 128 then
-            for e,i in ipairs(objects.objects) do
-                table.remove(objects.objects, e)
-                objects.count = objects.count - 1
-            end
-            game.overTries = 0
-            ply.score = 0
-            game.start = false
-        end
-
-        objects.lastSpacing = 128
-        objects.closestAmount = 0
-
-        -- particles
-        for e,i in ipairs(objects.particles) do
-            i.x = i.x + i.xspeed
-            i.y = i.y + i.yspeed
-
-            i.age = i.age - 1
-            if i.age <= 0 then
-                table.remove(objects.particles, e)
-            end
-        end
-
-        if love.keyboard.isDown("escape") then
-            game.start = false
-        end
-
-        if buttonHover(game.width - 32, 6, 21, 22) and click() then
-            canPush = false
-            canPushTimer = 0
-            love.audio.stop(sounds.click)
-            love.audio.play(sounds.click)
-            game.start = false
-        end
-
-    else
-        menu()
-    end
 end
 
 function love.mousepressed(x, y, button, isTouch)
-    if button == 1 and canPush then
-        for _,i in ipairs(objects.objects) do
-            if objects.idClosest == i.id then
+    if button == 1 and ply.canShoot <= os.time() and not game.over and game.play and not game.menu then
+        local id, px, py = selectClosestObject()
+        ply.xs = px - ply.x
+        ply.ys = py - ply.y
 
-                ply.xspeed = i.x - ply.x
-                ply.yspeed = i.y - ply.y
+        ply.canShoot = os.time() + game.playerCooldown
+        ply.shots = ply.shots + 1
 
-                love.audio.stop(sounds.shoot)
-                love.audio.play(sounds.shoot)
-            end
-        end
-
-        canPush = false
-        canPushTimer = 0
+        love.audio.stop(sounds.shoot)
+        love.audio.play(sounds.shoot)
     end
+end
+
+function love.keypressed(key, scancode, isrepeat)
+    if key == "escape" then
+        love.event.quit()
+    end
+end
+
+function love.update(dt)
+    click.update()
+
+    local windowWidth, windowHeight = love.window.getMode()
+
+    if game.width ~= windowWidth and game.height ~= windowHeight then
+        game.width, game.height = love.window.getMode()
+    end
+
+    if game.bestScore < ply.score then game.bestScore = ply.score end
+
+    if not game.play and game.menu and not game.settings then menuUpdate()
+    elseif game.play then gameUpdate()
+    elseif not game.play and not game.menu and game.settings then settingsUpdate() end
+    if game.over then gameOver() end
 end
 
 function love.draw()
-    love.graphics.setFont( gameFont )
     love.graphics.setBackgroundColor(23/255, 32/255, 42/255)
 
-    if game.start then
-        love.graphics.draw(images.pause, game.width - 32, 6)
-
-        setColorRGB(44, 62, 80)
-        love.graphics.rectangle("fill", game.border, game.border, game.width - game.border * 2, game.height - game.border * 2)
-
-        love.graphics.print("Score: " ..ply.score.. " Best Score: " ..ply.bestScore, 10, 10)
-
-        -- draw particles
-        for _,i in pairs(objects.particles) do
-            if i.golden then
-                setColorRGB(241, 196, 15, i.age)
-            else
-                setColorRGB(253, 254, 254, i.age)
-            end
-            love.graphics.rectangle("fill", i.x - 1, i.y - 1, 2, 2)
-            setColorRGB(255, 255, 255)
-        end
-
-        for _,i in pairs(objects.objects) do
-            -- draw lines
-            if vector.lengh(ply.x, ply.y, i.x, i.y) <= 128 then
-                setColorRGB(255, 255, 255, 127)
-                vector.draw(ply.x, ply.y, i.x, i.y)
-            end
-
-            if objects.idClosest == i.id then
-                setColorRGB(255, 255, 255)
-                vector.draw(ply.x, ply.y, i.x, i.y)
-            end
-
-            -- draw bricks
-            if i.golden == 1 then
-                setColorRGB(241, 196, 15)
-            else
-                setColorRGB(253, 254, 254)
-            end
-            love.graphics.rectangle("fill", i.x - 10, i.y - 10, objects.w, objects.w)
-
-            setColorRGB(255, 255, 255)
-        end
-
-        setColorRGB(171, 178, 185)
-        love.graphics.circle("fill", ply.x, ply.y, ply.radius) -- draw player
-
-        -- game over
-        if game.over then
-            love.graphics.print("No blocks in radius...\nYour game is over.\nYour score was " ..ply.score, game.width / 3, game.height / 3)
-        end
-    else
-        drawmenu()
+    if not game.play and game.menu and not game.settings then
+        menuDraw()
+    elseif game.play and not game.menu then
+        drawGame()
+        drawLines()
+        drawObjects()
+        drawParticles()
+    elseif not game.play and not game.menu and game.settings then
+        settingsDraw()
     end
-    setColorRGB(255, 255, 255)
-    love.graphics.draw(images.cursor, love.mouse.getX() - 4, love.mouse.getY() - 4)
+    if game.over and not game.menu and not game.settings then
+        drawGameOver()
+    end
+
+    local r, g, b = love.graphics.getColor()
+    love.graphics.setColor(1,1,1)
+    love.graphics.draw(images.cursor, love.mouse.getX(), love.mouse.getY())
+
+    -- Debug
+    --love.graphics.print(boolToNumber(game.play).." "..boolToNumber(game.menu).." "..boolToNumber(game.over), 10, 50)
 end
 
--- Saving part
+function love.quit() save() end
 
-function love.quit()
-    saving()
-end
-
-function saving()
-    save = {}
-    save.objectsLimit = objects.limit
-    save.bestScore = ply.bestScore
-    save.particles = (minParts + maxParts) / 2
-    if not love.filesystem.getInfo("quozul-games") then love.filesystem.createDirectory("quozul-games") end
-    love.filesystem.write("quozul-games/destructive-dot.sav", serialize(save))
+function save()
+    love.filesystem.write("save.sav", serialize(game))
 end
 
 function load()
-    if not love.filesystem.getInfo( "quozul-games/destructive-dot.sav" ) then
-        saving()
-        love.event.quit("restart")
-    end
-    if love.filesystem.getInfo( "quozul-games/destructive-dot.sav" ) then
-        chunk = love.filesystem.load("quozul-games/destructive-dot.sav")
-        loaded = chunk()
-        minParts, maxParts = loaded.particles - 5, loaded.particles + 5
-        objects.limit = loaded.objectsLimit
-        ply.bestScore = loaded.bestScore
+    if love.filesystem.getInfo( "save.sav" ) then
+        chunk = love.filesystem.load("save.sav")
+        game = chunk()
     end
 end
