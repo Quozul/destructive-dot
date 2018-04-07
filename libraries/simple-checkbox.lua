@@ -23,7 +23,7 @@ function checkbox:update()
     end
 end
 
-function checkbox:draw(name)
+function checkbox:draw(name, pos)
     if not self.value then
         love.graphics.rectangle("line", self.x, self.y, checkboxSize, checkboxSize)
     else
@@ -31,7 +31,19 @@ function checkbox:draw(name)
     end
 
     love.graphics.setColor(1, 1, 1)
-    love.graphics.print(name, self.x + checkboxSize + Font12:getWidth(name) / 8, self.y + checkboxSize / 8)
+    if pos == "right" then
+        love.graphics.print(name, self.x + checkboxSize + 10, self.y + Font12:getHeight(name) / (checkboxSize / 3))
+    elseif pos == "left" then
+        love.graphics.print(name, self.x - Font12:getWidth(name) - 10, self.y + Font12:getHeight(name) / (checkboxSize / 3))
+    end
 end
 
 function checkbox:isChecked() return self.value end
+
+function checkbox:checkValue(value)
+    if value then
+        self.value = true
+    else
+        self.value = false
+    end
+end
