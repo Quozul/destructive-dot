@@ -93,8 +93,10 @@ function explosion(x, y)
         game.objectsCount = game.objectsCount - 1
         ply.score = ply.score + i.points * ply.destructionSeries
 
-        for n=game.maxParticles / 2,game.maxParticles do
-            addParticles(i.x, i.y, i.color)
+        if not game.lessParticles then
+            for n=game.maxParticles / 2,game.maxParticles do
+                addParticles(i.x, i.y, i.color)
+            end
         end
 
         ply.destructionSeries = ply.destructionSeries + 1
@@ -104,8 +106,10 @@ function explosion(x, y)
         addParticles(x, y, "red")
     end
 
-    for n=game.maxParticles,game.maxParticles * 4 do
-        addParticles(x, y, "orange")
+    if not game.lessParticles then
+        for n=game.maxParticles,game.maxParticles * 4 do
+            addParticles(x, y, "orange")
+        end
     end
 end
 
@@ -118,7 +122,7 @@ function removeObject() -- Remove an object on collision
             if i.color ~= "red" then
                 ply.score = ply.score + i.points * ply.destructionSeries
 
-                for n=game.maxParticles / 2,game.maxParticles * i.points do
+                for n=game.maxParticles / 2, game.maxParticles * i.points do
                     addParticles(i.x, i.y, i.color)
                 end
 
@@ -145,24 +149,42 @@ function clearObjects()
 end
 
 function addParticles(x, y, color)
-    p = {}
-    p.x, p.y = x, y
-    p.color = color
-    p.xs, p.ys = randomFloat(-2, 2, 6), randomFloat(-2, 2, 6)
-    p.age = 255
+    if love.timer.getFPS() >= 30 then
+        p = {}
+        p.x, p.y = x + love.math.random(0, game.objectsSize), y + love.math.random(0, game.objectsSize)
+        p.color = color
 
-    table.insert(objects.particles, p)
+        p.xs, p.ys = randomFloat(-2, 2, 6), randomFloat(-2, 2, 6)
+        p.age = 255
+
+        if color == "orange" then
+            p.size = game.objectSize / 2
+        else
+            p.size = game.objectSize / 8
+        end
+
+        table.insert(objects.particles, p)
+    end
 end
 
 function updateParticles()
     for e,p in ipairs(objects.particles) do
         p.x, p.y = p.x + p.xs, p.y + p.ys
-        p.age = p.age - 1
+        if game.lessParticles and not game.infiniteParticles then
+            p.age = p.age - 2
+        elseif not game.infiniteParticles then
+            p.age = p.age - 1
+        end
 
-        if p.x <= game.xBorder or p.x + game.objectSize / 8 >= game.width - game.xBorder then p.xs = 0 end
-        if p.y <= game.yBorder or p.y + game.objectSize / 8 >= game.height - game.yBorder then p.ys = 0 end
+        if not game.lessParticles then
+            if p.x <= game.xBorder or p.x + p.size >= game.width - game.xBorder then p.xs = 0 end
+            if p.y <= game.yBorder or p.y + p.size >= game.height - game.yBorder then p.ys = 0 end
+        else
+            if p.x <= game.xBorder or p.x >= game.width - game.xBorder or p.y <= game.yBorder or p.y >= game.height - game.yBorder then table.remove(objects.particles, e) end
+        end
 
-        if p.xs ==0 and p.ys == 0 then table.remove(objects.particles, e) end
+        if p.xs == 0 and p.ys == 0 then table.remove(objects.particles, e)
+        elseif not game.infiniteParticles and p.age <= 0 then table.remove(objects.particles, e) end
     end
 end
 
@@ -176,9 +198,15 @@ function drawParticles()
         elseif p.color == "red" then setColorRGBa(192, 57, 43, p.age * 2) end
 
         if p.color == "orange" then
-            love.graphics.rectangle("fill", p.x, p.y, game.objectSize / 2, game.objectSize / 2)
+            love.graphics.rectangle("fill", p.x, p.y, p.size, p.size)
         else
-            love.graphics.rectangle("fill", p.x, p.y, game.objectSize / 8, game.objectSize / 8)
+            love.graphics.rectangle("fill", p.x, p.y, p.size, p.size)
         end
+    end
+end
+
+function clearParticles()
+    for e,p in ipairs(objects.particles) do
+        table.remove(objects.particles, e)
     end
 end

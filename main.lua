@@ -20,8 +20,11 @@ function love.load()
     Font12 = love.graphics.newFont("data/Montserrat-Regular.ttf", 12) -- Font from Google Font
     Font24 = love.graphics.newFont("data/Montserrat-Regular.ttf", 24)
 
+    game.objectSize = 20 -- In pixels
+    game.playerRadius = 10 -- Radius of the ball in pixels
+    game.playerReach = 120 -- Reach in pixels
+
     -- Window variables
-    game.width, game.height = 480, 640
     game.xBorder, game.yBorder = 20, 40
 
     -- Settings parameters
@@ -29,10 +32,10 @@ function love.load()
     game.maxParticles = 15
 
     -- Gameplay
-    game.objectSize = 20 -- In pixels
-    game.playerRadius = 10 -- Radius of the ball in pixels
-    game.playerReach = 120 -- Reach in pixels
     game.playerCooldown = 1 -- Cooldown in seconds
+
+    game.lessParticles = false
+    game.infiniteParticles = false
 
     -- Player variables
     ply.score = 0
@@ -41,14 +44,22 @@ function love.load()
     ply.canShoot = os.time() -- Define when the player can shoot
 
     game.bestScore = 0
+    game.showFPS = false
+
+    load()
+
+    game.width, game.height = love.window.getMode()
+
+    if love.system.getOS() == "iOS" or love.system.getOS() == "Android" then
+        game.width, game.height = game.width / 2, game.height / 2
+    end
+
+    LFont = love.graphics.newFont("data/Montserrat-Regular.ttf", game.height / 2)
 
     ply.x, ply.y = game.width / 2, game.height / 2
     ply.xs, ply.ys = 0, 0
 
-    load()
-
     -- Settings up the window
-    love.window.setMode(game.width, game.height, {resizable=true, minwidth=480, minheight=640})
     love.window.setTitle("Destructive Dot - A game by Quôzul")
 
     -- Menu identifier
@@ -74,12 +85,15 @@ function love.load()
     images.menu = love.graphics.newImage("data/menu.png")
 
     -- Buttons
-    retry = newButton(game.width / 2 - 100, game.height / 2 - 150, 200, 100)
-    menu = newButton(game.width / 2 - 100, game.height / 2 + 50, 200, 100)
+    local buttonHeight = game.height / 6
+    local buttonWidth = game.width / 4
 
-    play = newButton(game.width / 2 - 100, game.height / 2 - 200, 200, 100)
-    settings = newButton(game.width / 2 - 100, game.height / 2 - 50, 200, 100)
-    quit = newButton(game.width / 2 - 100, game.height / 2 + 100, 200, 100)
+    retry = newButton(game.width / 2 - buttonWidth / 2, game.height / 2 - 150, buttonWidth, buttonHeight)
+    menu = newButton(game.width / 2 - buttonWidth / 2, game.height / 2 + 50, buttonWidth, buttonHeight)
+
+    play = newButton(game.width / 2 - buttonWidth / 2, game.height / 2 - 200, buttonWidth, buttonHeight)
+    settings = newButton(game.width / 2 - buttonWidth / 2, game.height / 2 - 50, buttonWidth, buttonHeight)
+    quit = newButton(game.width / 2 - buttonWidth / 2, game.height / 2 + 100, buttonWidth, buttonHeight)
 
     back = newButton(game.width - Font12:getWidth("← Back") * 2 - 10, 10, Font12:getWidth("← Back") * 2, Font12:getHeight("← Back") * 2)
 
@@ -88,12 +102,33 @@ function love.load()
     particlesSlider = newSlider(game.width / 2, 200, 200, game.maxParticles, 0, 150, {width=15, orientation='horizontal', track='roundrect', knob='circle'})
 
     -- Checkboxes
-    fullscreen = newCheckbox(10, 10)
+    lessParticles = newCheckbox(10, game.height / 2 + 30)
+    infiniteParticles = newCheckbox(10, game.height / 2)
+    fullscreen = newCheckbox(game.width - 30, game.height / 2)
+    showFPS = newCheckbox(game.width - 30, game.height / 2 + 30)
 
+    fullscreen:checkValue(love.window.getFullscreen())
+    lessParticles:checkValue(game.lessParticles)
+    infiniteParticles:checkValue(game.infiniteParticles)
+    showFPS:checkValue(game.showFPS)
 end
 
 function love.mousepressed(x, y, button, isTouch)
-    if button == 1 and ply.canShoot <= os.time() and not game.over and game.play and not game.menu then
+    if button == 1 and ply.canShoot <= os.time() and not game.over and game.play and not game.menu and not isTouch then
+        local id, px, py = selectClosestObject()
+        ply.xs = px - ply.x
+        ply.ys = py - ply.y
+
+        ply.canShoot = os.time() + game.playerCooldown
+        ply.shots = ply.shots + 1
+
+        love.audio.stop(sounds.shoot)
+        love.audio.play(sounds.shoot)
+    end
+end
+
+function love.mousereleased(x, y, button, isTouch)
+    if button == 1 and ply.canShoot <= os.time() and not game.over and game.play and not game.menu and isTouch then
         local id, px, py = selectClosestObject()
         ply.xs = px - ply.x
         ply.ys = py - ply.y
@@ -113,20 +148,20 @@ function love.keypressed(key, scancode, isrepeat)
 end
 
 function love.update(dt)
-    click.update()
-
-    local windowWidth, windowHeight = love.window.getMode()
-
-    if game.width ~= windowWidth and game.height ~= windowHeight then
-        game.width, game.height = love.window.getMode()
+    if love.timer.getFPS() <= 15 then
+        clearParticles()
     end
 
-    if game.bestScore < ply.score then game.bestScore = ply.score end
+    if love.window.hasFocus() then
+        click.update()
 
-    if not game.play and game.menu and not game.settings then menuUpdate()
-    elseif game.play then gameUpdate()
-    elseif not game.play and not game.menu and game.settings then settingsUpdate() end
-    if game.over then gameOver() end
+        if game.bestScore < ply.score then game.bestScore = ply.score end
+
+        if not game.play and game.menu and not game.settings then menuUpdate()
+        elseif game.play then gameUpdate()
+        elseif not game.play and not game.menu and game.settings then settingsUpdate() end
+        if game.over then gameOver() end
+    end
 end
 
 function love.draw()
@@ -135,10 +170,17 @@ function love.draw()
     if not game.play and game.menu and not game.settings then
         menuDraw()
     elseif game.play and not game.menu then
-        drawGame()
+        setColorRGB(44, 62, 80)
+        love.graphics.rectangle("fill", game.xBorder, game.yBorder, game.width - game.xBorder * 2, game.height - game.yBorder * 2)
+
+        setColorRGB(86, 101, 115)
+        love.graphics.setFont(LFont)
+        love.graphics.print(ply.score, game.width / 2 - LFont:getWidth(ply.score) / 2, game.height / 2 - LFont:getHeight(ply.score) / 2)
+
+        drawParticles()
         drawLines()
         drawObjects()
-        drawParticles()
+        drawGame()
     elseif not game.play and not game.menu and game.settings then
         settingsDraw()
     end
@@ -150,13 +192,18 @@ function love.draw()
     love.graphics.setColor(1,1,1)
     love.graphics.draw(images.cursor, love.mouse.getX(), love.mouse.getY())
 
-    -- Debug
-    --love.graphics.print(boolToNumber(game.play).." "..boolToNumber(game.menu).." "..boolToNumber(game.over), 10, 50)
+    -- FPS
+    if game.showFPS then
+        local fps = "Current FPS: " ..tostring(love.timer.getFPS())
+        love.graphics.setFont(Font12)
+        love.graphics.print(fps, game.width - Font12:getWidth(fps) - 10, 10)
+    end
 end
 
 function love.quit() save() end
 
 function save()
+    love.filesystem.remove("save.sav")
     love.filesystem.write("save.sav", serialize(game))
 end
 

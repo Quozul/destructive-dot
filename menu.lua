@@ -4,6 +4,8 @@ require "libraries/simple-button"
 require "objects"
 
 function menuUpdate()
+    clearParticles()
+
     play:update()
     settings:update()
     quit:update()
@@ -34,6 +36,9 @@ function settingsUpdate()
     particlesSlider:update()
 
     fullscreen:update()
+    lessParticles:update()
+    infiniteParticles:update()
+    showFPS:update()
     back:update()
 
     if game.maxParticles ~= particlesSlider:getValue() then
@@ -46,6 +51,25 @@ function settingsUpdate()
         love.window.setFullscreen(true)
     else
         love.window.setFullscreen(false)
+    end
+
+    if lessParticles:isChecked() then
+        game.lessParticles = true
+        game.infiniteParticles = false
+    else
+        game.lessParticles = false
+    end
+
+    if infiniteParticles:isChecked() then
+        game.infiniteParticles = true
+    else
+        game.infiniteParticles = false
+    end
+
+    if showFPS:isChecked() then
+        game.showFPS = true
+    else
+        game.showFPS = false
     end
 
     if back:isPressed() then
@@ -62,7 +86,10 @@ function settingsDraw()
     difficultySlider:draw("Difficulty", "Easy", "Hard")
     particlesSlider:draw("Particles", "None", "Lot")
 
-    fullscreen:draw("Fullscreen")
+    lessParticles:draw("Less particles", "right")
+    infiniteParticles:draw("Infinite particles life", "right")
+    fullscreen:draw("Fullscreen (experimental)", "left")
+    showFPS:draw("Show FPS", "left")
 
     back:draw("← Back")
 end
