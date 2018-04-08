@@ -36,6 +36,7 @@ function love.load()
 
     game.lessParticles = false
     game.infiniteParticles = false
+    game.gravity = false
 
     -- Player variables
     ply.score = 0
@@ -46,11 +47,11 @@ function love.load()
     game.bestScore = 0
     game.showFPS = false
 
-    load()
+    if love.getVersion() == 11 then load() end
 
     game.width, game.height = love.window.getMode()
 
-    if love.system.getOS() == "iOS" or love.system.getOS() == "Android" then
+    if love.system.getOS() == "iOS" or love.system.getOS() == "Android" and love.getVersion() == 11 then
         game.width, game.height = game.width / 2, game.height / 2
     end
 
@@ -88,12 +89,12 @@ function love.load()
     local buttonHeight = game.height / 6
     local buttonWidth = game.width / 4
 
-    retry = newButton(game.width / 2 - buttonWidth / 2, game.height / 2 - 150, buttonWidth, buttonHeight)
-    menu = newButton(game.width / 2 - buttonWidth / 2, game.height / 2 + 50, buttonWidth, buttonHeight)
+    retry = newButton(game.width / 2 - buttonWidth / 2, game.height / 2 - buttonHeight * 1.5, buttonWidth, buttonHeight)
+    menu = newButton(game.width / 2 - buttonWidth / 2, game.height / 2 + buttonHeight / 2, buttonWidth, buttonHeight)
 
-    play = newButton(game.width / 2 - buttonWidth / 2, game.height / 2 - 200, buttonWidth, buttonHeight)
-    settings = newButton(game.width / 2 - buttonWidth / 2, game.height / 2 - 50, buttonWidth, buttonHeight)
-    quit = newButton(game.width / 2 - buttonWidth / 2, game.height / 2 + 100, buttonWidth, buttonHeight)
+    play = newButton(game.width / 2 - buttonWidth / 2, game.height / 2 - buttonHeight * 2, buttonWidth, buttonHeight)
+    settings = newButton(game.width / 2 - buttonWidth / 2, game.height / 2 - buttonHeight / 2, buttonWidth, buttonHeight)
+    quit = newButton(game.width / 2 - buttonWidth / 2, game.height / 2 + buttonHeight, buttonWidth, buttonHeight)
 
     back = newButton(game.width - Font12:getWidth("← Back") * 2 - 10, 10, Font12:getWidth("← Back") * 2, Font12:getHeight("← Back") * 2)
 
@@ -142,8 +143,14 @@ function love.mousereleased(x, y, button, isTouch)
 end
 
 function love.keypressed(key, scancode, isrepeat)
-    if key == "escape" then
-        love.event.quit()
+    if key == "escape" or key == "appback" then
+        if game.play then
+            game.play, game.menu = false, true
+        elseif game.settings then
+            game.settings, game.menu = false, true
+        elseif game.menu then
+            love.event.quit()
+        end
     end
 end
 
@@ -188,15 +195,23 @@ function love.draw()
         drawGameOver()
     end
 
-    local r, g, b = love.graphics.getColor()
-    love.graphics.setColor(1,1,1)
-    love.graphics.draw(images.cursor, love.mouse.getX(), love.mouse.getY())
+    love.graphics.setColor(1, 1, 1)
+    if love.system.getOS() == "Windows" or love.system.getOS() == "Linux" or love.system.getOS() == "OS X" then
+        love.graphics.draw(images.cursor, love.mouse.getX(), love.mouse.getY())
+    end
 
     -- FPS
     if game.showFPS then
         local fps = "Current FPS: " ..tostring(love.timer.getFPS())
         love.graphics.setFont(Font12)
         love.graphics.print(fps, game.width - Font12:getWidth(fps) - 10, 10)
+    end
+
+    if love.getVersion() ~= 11 then
+        love.graphics.setColor(255, 0, 0)
+        love.graphics.setFont(Font24)
+        local msg = "You're not in the right version of Löve 2D"
+        love.graphics.print(msg, game.width / 2 - Font24:getWidth(msg) / 2, game.height / 2 - Font24:getHeight(msg) / 2)
     end
 end
 

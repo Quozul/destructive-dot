@@ -170,6 +170,7 @@ end
 function updateParticles()
     for e,p in ipairs(objects.particles) do
         p.x, p.y = p.x + p.xs, p.y + p.ys
+        if game.gravity then p.ys = p.ys + 0.01 end
         if game.lessParticles and not game.infiniteParticles then
             p.age = p.age - 2
         elseif not game.infiniteParticles then
@@ -178,7 +179,7 @@ function updateParticles()
 
         if not game.lessParticles then
             if p.x <= game.xBorder or p.x + p.size >= game.width - game.xBorder then p.xs = 0 end
-            if p.y <= game.yBorder or p.y + p.size >= game.height - game.yBorder then p.ys = 0 end
+            if p.y <= game.yBorder and not game.gravity or p.y + p.size >= game.height - game.yBorder then p.ys = 0 end
         else
             if p.x <= game.xBorder or p.x >= game.width - game.xBorder or p.y <= game.yBorder or p.y >= game.height - game.yBorder then table.remove(objects.particles, e) end
         end
