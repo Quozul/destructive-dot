@@ -1,6 +1,8 @@
 require "objects"
 require "libraries/simple-button"
 
+PotentialGravityEnergy = 0
+
 function gameUpdate()
     removeObject()
     updateParticles()
@@ -11,8 +13,16 @@ function gameUpdate()
     ply.x = ply.x + ply.xs
     ply.y = ply.y + ply.ys
 
-    ply.xs = ply.xs / 1.3
-    ply.ys = ply.ys / 1.3
+    PotentialGravityEnergy = (ply.y - (game.height - game.yBorder))
+
+    if game.gravity and ply.y <= game.height and math.abs(PotentialGravityEnergy) >= game.playerRadius + 1 then ply.ys = ply.ys + 0.1 end
+    if game.gravity and ply.ys < 0 then ply.ys = 0 end
+    if game.gravity and math.abs(PotentialGravityEnergy) <= game.playerRadius + 1 then ply.xs = ply.xs / 2 end
+
+    if not game.gravity then
+        ply.ys = ply.ys / 1.3
+        ply.xs = ply.xs / 1.3
+    end
 
     -- Collision with border of the window
     if ply.x + game.playerRadius >= game.width - game.xBorder then
@@ -26,18 +36,21 @@ function gameUpdate()
     if ply.y + game.playerRadius >= game.height - game.yBorder then
         ply.ys = -ply.ys
         ply.y = game.height - game.yBorder - game.playerRadius
-    elseif ply.y - game.playerRadius <= game.yBorder then
+    elseif ply.y - game.playerRadius <= game.yBorder and not game.gravity then
         ply.ys = -ply.ys
         ply.y = game.yBorder + game.playerRadius
     end
 
-    if ply.x + game.playerRadius >= game.width - game.xBorder or ply.x - game.playerRadius <= game.xBorder or ply.y + game.playerRadius >= game.height - game.yBorder or ply.y - game.playerRadius <= game.yBorder then
+    if ply.x + game.playerRadius >= game.width - game.xBorder or ply.x - game.playerRadius <= game.xBorder or ply.y + game.playerRadius >= game.height - game.yBorder or ply.y - game.playerRadius <= game.yBorder and not game.gravity then
         wallHitSound()
 
         if not game.lessParticles then
             for n=game.maxParticles / 2, game.maxParticles do
                 addParticles(ply.x, ply.y, "white")
             end
+        end
+        if game.gravity then
+            ply.xs = ply.xs / 2
         end
     end
 
@@ -83,6 +96,12 @@ function gameOver()
     retry:update()
     menu:update()
 
+    local finalScore = ply.score * round(30 / game.objectsLimit, 0)
+
+    if finalScore > game.bestScore then
+        game.bestScore = finalScore
+    end
+
     if retry:isPressed() then restart() end
     if menu:isPressed() then
         game.play = false
@@ -92,11 +111,14 @@ function gameOver()
 end
 
 function drawGameOver()
-    love.graphics.setFont(Font24)
     setColorRGB(0, 0, 0)
 
     love.graphics.setFont(Font24)
-    love.graphics.print("You lose.", game.width / 2 - Font24:getWidth("You lose.") / 2, game.height / 2 - Font24:getHeight("You lose.") / 2)
+    love.graphics.print("You lose.", game.width / 2 - Font24:getWidth("You lose.") / 2, game.height / 2 - Font24:getHeight("You lose."))
+    love.graphics.setFont(Font12)
+    local finalScore = "Final score: " ..ply.score * round(30 / game.objectsLimit, 0)
+    love.graphics.print(finalScore, game.width / 2 - Font12:getWidth(finalScore) / 2, game.height / 2 + Font12:getHeight(finalScore))
+    love.graphics.setFont(Font24)
 
     setColorRGB(192, 57, 43)
     retry:draw("Retry")
