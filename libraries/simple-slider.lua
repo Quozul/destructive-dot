@@ -99,9 +99,9 @@ function slider:draw(name, minName, maxName)
     local Font = love.graphics.getFont()
 
     value = round(self.min + self.value * (self.max - self.min), 0)
-    love.graphics.print(name, self.x - self.length/2 - Font:getWidth(name) - 20, self.y - Font:getHeight(name) / 2)
-    love.graphics.print(minName, self.x - self.length/2, self.y + self.width)
-    love.graphics.print(maxName, self.x + self.length/2 - Font:getWidth(maxName), self.y + self.width)
+    love.graphics.print(name, self.x - self.length/2 - Font:getWidth(name) * 1.25, self.y - Font:getHeight(name) / 2)
+    love.graphics.print(minName, self.x - self.length/2, self.y + self.width / 2)
+    love.graphics.print(maxName, self.x + self.length/2 - Font:getWidth(maxName), self.y + self.width / 2)
     -- END OF EDITED PART
 
     if self.track == 'rectangle' then
