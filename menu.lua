@@ -4,12 +4,14 @@ require "libraries/simple-button"
 require "objects"
 
 function menuUpdate()
+    clearParticles()
+
     play:update()
     settings:update()
     quit:update()
 
     if play:isPressed() then
-        game.menu, game.play = false, true
+        game.menu, game.play, game.pause = false, true, false
         restart()
     elseif settings:isPressed() then
         game.menu, game.settings = false, true
@@ -33,19 +35,41 @@ function settingsUpdate()
     difficultySlider:update()
     particlesSlider:update()
 
-    fullscreen:update()
+    if game.currentOS ~= "smartphone" then fullscreen:update() end
+    lessParticles:update()
+    infiniteParticles:update()
+    showFPS:update()
     back:update()
 
-    if game.maxParticles ~= particlesSlider:getValue() then
-        game.maxParticles = particlesSlider:getValue()
-    elseif game.objectsLimit ~= difficultySlider:getValue() then
-        game.objectsLimit = difficultySlider:getValue()
+    if option.maxParticles ~= particlesSlider:getValue() then
+        option.maxParticles = particlesSlider:getValue()
+    elseif option.objectsLimit ~= difficultySlider:getValue() then
+        option.objectsLimit = difficultySlider:getValue()
     end
 
-    if fullscreen:isChecked() then
-        love.window.setFullscreen(true)
+    if fullscreen:isChecked() and game.currentOS ~= "smartphone" then
+        option.fullscreen = true
     else
-        love.window.setFullscreen(false)
+        option.fullscreen = false
+    end
+
+    if lessParticles:isChecked() then
+        option.lessParticles = true
+        option.infiniteParticles = false
+    else
+        option.lessParticles = false
+    end
+
+    if infiniteParticles:isChecked() then
+        option.infiniteParticles = true
+    else
+        option.infiniteParticles = false
+    end
+
+    if showFPS:isChecked() then
+        option.showFPS = true
+    else
+        option.showFPS = false
     end
 
     if back:isPressed() then
@@ -62,7 +86,10 @@ function settingsDraw()
     difficultySlider:draw("Difficulty", "Easy", "Hard")
     particlesSlider:draw("Particles", "None", "Lot")
 
-    fullscreen:draw("Fullscreen")
+    lessParticles:draw("Less particles", "right")
+    infiniteParticles:draw("Infinite particles life", "right")
+    if game.currentOS ~= "smartphone" then fullscreen:draw("Fullscreen (need restart)", "left") end
+    showFPS:draw("Show FPS", "left")
 
     back:draw("← Back")
 end
