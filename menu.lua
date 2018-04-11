@@ -80,6 +80,7 @@ end
 
 function settingsDraw()
     love.graphics.setFont(Font12)
+    love.graphics.print("OS: " ..love.system.getOS(), 10, 10)
 
     love.graphics.print("Settings", game.width / 2 - Font12:getWidth("Settings") / 2, 10)
 
