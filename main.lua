@@ -27,7 +27,8 @@ function love.load()
 
     option.lessParticles = false
     option.infiniteParticles = false
-    option.gravity = false
+    option.gravity = false -- Secret feature
+    option.playMusic = false -- Needs a button
 
     option.bestScore = 0
     option.showFPS = false
@@ -47,12 +48,12 @@ function love.load()
         game.width, game.height = game.width / 2, game.height / 2
         game.lessParticles = true
         game.currentOS = "smartphone"
+        game.size = (game.width * game.height) * 2
     else
         love.window.setFullscreen(option.fullscreen)
         game.width, game.height = love.window.getMode()
+        game.size = game.width * game.height
     end
-
-    game.size = game.width * game.height
 
     game.objectSize = game.size / 24000 -- In pixels
     game.playerRadius = game.size / 48000 -- Radius of the ball in pixels
@@ -84,18 +85,22 @@ function love.load()
 
     -- Loading sounds
     sounds = {}
-    sounds.shoot = love.audio.newSource("data/shoot.ogg", "stream")
-    sounds.hitWall = love.audio.newSource("data/wallhit.ogg", "stream")
-    sounds.hitObject = love.audio.newSource("data/objecthit.ogg", "stream")
-    sounds.uiClick = love.audio.newSource("data/click.ogg", "stream")
-    sounds.explosion = love.audio.newSource("data/explosion.ogg", "stream")
+    sounds.shoot = love.audio.newSource("data/sounds/shoot.ogg", "stream")
+    sounds.hitWall = love.audio.newSource("data/sounds/wallhit.ogg", "stream")
+    sounds.hitObject = love.audio.newSource("data/sounds/objecthit.ogg", "stream")
+    sounds.uiClick = love.audio.newSource("data/sounds/click.ogg", "stream")
+    sounds.explosion = love.audio.newSource("data/sounds/explosion.ogg", "stream")
+
+    musics = {}
+    musics.banane = love.audio.newSource("data/musics/Banane.mp3", "stream")
+    musics.framboise = love.audio.newSource("data/musics/Framboise.mp3", "stream")
+    playMusic = 0
 
     -- Loading images
     images = {}
     love.graphics.setDefaultFilter("nearest", "nearest")
-    images.pause = love.graphics.newImage("data/pause.png")
-    images.cursor = love.graphics.newImage("data/cursor.png")
-    images.menu = love.graphics.newImage("data/menu.png")
+    images.pause = love.graphics.newImage("data/images/pause.png")
+    images.cursor = love.graphics.newImage("data/images/cursor.png")
 
     -- Buttons
     local buttonHeight = game.height / 6
@@ -180,6 +185,19 @@ function love.update(dt)
         elseif game.play then gameUpdate()
         elseif not game.play and not game.menu and game.settings then settingsUpdate() end
         if game.over then gameOver() end
+    end
+
+    if love.audio.getActiveSourceCount() == 0 and option.playMusic then
+        playMusic = playMusic + 1
+    else playMusic = 0 end
+
+    if playMusic >= 20 then
+        local r = love.math.random(0, 1)
+        if r == 0 then
+            love.audio.play(musics.banane)
+        elseif r == 1 then
+            love.audio.play(musics.framboise)
+        end
     end
 end
 

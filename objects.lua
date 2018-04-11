@@ -125,13 +125,13 @@ end
 function updateObjects() -- Remove an object on collision
     for e,i in ipairs(objects.objects) do
         if CheckCollision(ply.x, ply.y, game.playerRadius*2, game.playerRadius*2, i.x, i.y, game.objectSize, game.objectSize) then
-            if math.abs(i.xs + i.ys) < 0.001 then
+            if math.abs(i.xs + i.ys) < 0.001 and math.abs(ply.xs + ply.ys) >= 0.0001 then
                 i.xs, i.ys = ply.xs / 2, ply.ys / 2
                 i.hits = i.hits - math.abs(i.xs + i.ys) / game.playerReach
 
                 if not option.lessParticles then
                     for n=0, option.maxParticles / 4 * i.points do
-                        addParticles(i.x, i.y, i.color)
+                        addParticles(i.x + game.objectSize / 2, i.y + game.objectSize / 2, i.color)
                     end
                 end
             end
