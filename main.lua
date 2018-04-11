@@ -87,9 +87,10 @@ function love.load()
     sounds = {}
     sounds.shoot = love.audio.newSource("data/sounds/shoot.ogg", "stream")
     sounds.hitWall = love.audio.newSource("data/sounds/wallhit.ogg", "stream")
-    sounds.hitObject = love.audio.newSource("data/sounds/objecthit.ogg", "stream")
+    sounds.hitObject = love.audio.newSource("data/sounds/wallhit.ogg", "stream") -- Must be changed
     sounds.uiClick = love.audio.newSource("data/sounds/click.ogg", "stream")
     sounds.explosion = love.audio.newSource("data/sounds/explosion.ogg", "stream")
+    sounds.objectDestruction = love.audio.newSource("data/sounds/objectdestruction.ogg", "stream")
 
     musics = {}
     musics.banane = love.audio.newSource("data/musics/Banane.mp3", "stream")
@@ -132,7 +133,7 @@ function love.load()
 end
 
 function love.mousepressed(x, y, button, isTouch)
-    if button == 1 and ply.canShoot <= os.time() and not game.over and game.play and not game.menu and not isTouch then
+    if button == 1 and playerSpeed(0.1) and not game.over and game.play and not game.menu and not isTouch then
         local id, px, py = selectClosestObject()
         ply.xs = px - ply.x
         ply.ys = py - ply.y
@@ -146,7 +147,7 @@ function love.mousepressed(x, y, button, isTouch)
 end
 
 function love.mousereleased(x, y, button, isTouch)
-    if button == 1 and ply.canShoot <= os.time() and not game.over and game.play and not game.menu and isTouch then
+    if button == 1 and playerSpeed(0.1) and not game.over and game.play and not game.menu and isTouch then
         local id, px, py = selectClosestObject()
         ply.xs = px - ply.x
         ply.ys = py - ply.y

@@ -11,7 +11,7 @@ function objectColor()
     local points = 1
 
     if percentage(3) then
-        color, points = "red", 5
+        color, points = "red", 1
     elseif percentage(6) then
         color, points = "yellow", 4
     elseif percentage(12) then
@@ -98,10 +98,12 @@ end
 
 function explosion(x, y)
     for e,i in ipairs(objects.objects) do
-        if segmentLengh(i.x, i.y, x, y) >= game.playerReach * 2 then
+        if segmentLengh(i.x, i.y, x, y) <= game.playerReach * 2 then
             if math.abs(i.xs + i.ys) < 0.001 then
-                i.xs, i.ys = i.x - x, i.y - y
+                i.xs, i.ys = (i.x - x) / game.playerReach, (i.y - y) / game.playerReach
             end
+
+            i.hits = i.hits - 1 - i.points / 2
 
             if not option.lessParticles then
                 for n=option.maxParticles / 2,option.maxParticles do
@@ -128,6 +130,9 @@ function updateObjects() -- Remove an object on collision
             if math.abs(i.xs + i.ys) < 0.001 and math.abs(ply.xs + ply.ys) >= 0.0001 then
                 i.xs, i.ys = ply.xs / 2, ply.ys / 2
                 i.hits = i.hits - math.abs(i.xs + i.ys) / game.playerReach
+
+                love.audio.stop(sounds.hitObject)
+                love.audio.play(sounds.hitObject)
 
                 if not option.lessParticles then
                     for n=0, option.maxParticles / 4 * i.points do
@@ -168,8 +173,8 @@ function updateObjects() -- Remove an object on collision
                     addParticles(i.x, i.y, i.color)
                 end
 
-                love.audio.stop(sounds.hitObject)
-                love.audio.play(sounds.hitObject)
+                love.audio.stop(sounds.objectDestruction)
+                love.audio.play(sounds.objectDestruction)
             elseif i.color == "red" then
                 explosion(i.x, i.y)
 
