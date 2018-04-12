@@ -11,7 +11,7 @@ function objectColor()
     local points = 1
 
     if percentage(3) then
-        color, points = "red", 1
+        color, points = "red", 5
     elseif percentage(6) then
         color, points = "yellow", 4
     elseif percentage(12) then
@@ -129,10 +129,10 @@ function updateObjects() -- Remove an object on collision
         if CheckCollision(ply.x, ply.y, game.playerRadius*2, game.playerRadius*2, i.x, i.y, game.objectSize, game.objectSize) then
             if math.abs(i.xs + i.ys) < 0.001 and math.abs(ply.xs + ply.ys) >= 0.0001 then
                 i.xs, i.ys = ply.xs / 2, ply.ys / 2
-                i.hits = i.hits - math.abs(i.xs + i.ys) / game.playerReach
+                i.hits = i.hits - 1
 
-                love.audio.stop(sounds.hitObject)
-                love.audio.play(sounds.hitObject)
+                love.audio.stop(sounds.hit)
+                love.audio.play(sounds.hit)
 
                 if not option.lessParticles then
                     for n=0, option.maxParticles / 4 * i.points do
@@ -168,6 +168,7 @@ function updateObjects() -- Remove an object on collision
 
             if i.color ~= "red" and math.abs(ply.xs + ply.ys) >= 0.01 then
                 ply.score = ply.score + i.points * ply.destructionSeries
+                ply.newScore = ply.newScore + i.points * ply.destructionSeries
 
                 for n=0, option.maxParticles * i.points do
                     addParticles(i.x, i.y, i.color)
