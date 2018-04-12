@@ -3,6 +3,31 @@ require "libraries/simple-slider"
 require "libraries/simple-button"
 require "objects"
 
+function scalingProblemsUpdate()
+    no:update()
+    yes:update()
+
+    if no:isPressed() then
+        option.scale = option.scale + 1
+        love.event.quit("restart")
+    elseif yes:isPressed() then
+        option.goodScale = true
+        love.event.quit("restart")
+    end
+end
+
+function scalingProblemsDraw()
+    love.graphics.setFont(Font24)
+
+    local msg = "Is the scaling correct?"
+    love.graphics.print(msg, game.width / 2 - Font24:getWidth(msg) / 2, game.height / 2 - Font24:getHeight(msg) / 2)
+
+    setColorRGB(192, 57, 43)
+    no:draw("No")
+    setColorRGB(241, 196, 15)
+    yes:draw("Yes")
+end
+
 function menuUpdate()
     clearParticles()
 
@@ -40,6 +65,7 @@ function settingsUpdate()
     infiniteParticles:update()
     showFPS:update()
     back:update()
+    music:update()
 
     if option.maxParticles ~= particlesSlider:getValue() then
         option.maxParticles = particlesSlider:getValue()
@@ -76,6 +102,13 @@ function settingsUpdate()
         game.menu = true
         game.settings = false
     end
+
+    if music:isChecked() then
+        option.playMusic = true
+    else
+        option.playMusic = false
+        love.audio.stop()
+    end
 end
 
 function settingsDraw()
@@ -91,6 +124,7 @@ function settingsDraw()
     infiniteParticles:draw("Infinite particles life", "right")
     if game.currentOS ~= "smartphone" then fullscreen:draw("Fullscreen (need restart)", "left") end
     showFPS:draw("Show FPS", "left")
+    music:draw("Musics", "left")
 
     back:draw("← Back")
 end

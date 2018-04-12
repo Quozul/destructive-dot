@@ -99,9 +99,6 @@ function slider:draw(name, minName, maxName)
     local Font = love.graphics.getFont()
 
     value = round(self.min + self.value * (self.max - self.min), 0)
-    love.graphics.print(name, self.x - self.length/2 - Font:getWidth(name) * 1.25, self.y - Font:getHeight(name) / 2)
-    love.graphics.print(minName, self.x - self.length/2, self.y + self.width / 2)
-    love.graphics.print(maxName, self.x + self.length/2 - Font:getWidth(maxName), self.y + self.width / 2)
     -- END OF EDITED PART
 
     if self.track == 'rectangle' then
@@ -128,10 +125,14 @@ function slider:draw(name, minName, maxName)
     local knobY = self.y
     if self.orientation == 'horizontal' then
         knobX = self.x - self.length/2 + self.length * self.value
+
+        love.graphics.print(name, self.x - self.length/2 - Font:getWidth(name) * 1.25, self.y - Font:getHeight(name) / 2)
+        love.graphics.print(minName, self.x - self.length/2, self.y + self.width / 2)
+        love.graphics.print(maxName, self.x + self.length/2 - Font:getWidth(maxName), self.y + self.width / 2)
     elseif self.orientation == 'vertical' then
         knobY = self.y + self.length/2 - self.length * self.value
     end
-
+    
     if self.knob == 'rectangle' then
         love.graphics.rectangle('fill', knobX - self.width/2, knobY - self.width/2, self.width, self.width)
     elseif self.knob == 'circle' then

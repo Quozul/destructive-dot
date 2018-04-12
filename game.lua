@@ -55,14 +55,17 @@ function gameUpdate()
     end
 
     -- If there is not enought objects                         then create a new object
-    if game.objectsCount < option.objectsLimit and playerSpeed(0.01) then addObject() end
+    if game.objectsCount < option.objectsLimit and playerSpeed(0.1) then addObject() end
 
     if not objectInReach() and playerSpeed(0.001) and ply.shots ~= 0 then game.over = true else game.over = false end
     if not objectInReach() and ply.shots == 0 then clearObjects() end
 
     if buttonHover(game.width - 32, 6, 22, 21) and click.isNew() then game.menu = true end
 
-    if playerSpeed(0.001) then ply.destructionSeries = 1 end
+    if playerSpeed(0.1) then
+        ply.destructionSeries = 1
+        ply.newScore = 0
+    end
 end
 
 function restart()
@@ -77,8 +80,8 @@ function restart()
 end
 
 function wallHitSound()
-    love.audio.stop(sounds.hitWall)
-    love.audio.play(sounds.hitWall)
+    love.audio.stop(sounds.hit)
+    love.audio.play(sounds.hit)
 end
 
 function playerSpeed(v) if math.abs(ply.xs + ply.ys) <= v then return true end end
@@ -90,6 +93,11 @@ function drawGame()
     setColorRGB(255, 255, 255)
     love.graphics.setFont(Font12)
     love.graphics.print("Score: " ..ply.score.. " x" ..ply.destructionSeries.. " Best score: " ..option.bestScore, 10, 10)
+
+    if ply.newScore ~= 0 then
+        love.graphics.setFont(Font24)
+        love.graphics.print("+" ..ply.newScore, game.width / 2 - Font24:getWidth("+" ..ply.newScore) / 2, game.height / 2 + Font24:getHeight("+" ..ply.newScore))
+    end
 end
 
 function gameOver()

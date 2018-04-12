@@ -32,10 +32,14 @@ function love.load()
 
     option.bestScore = 0
     option.showFPS = false
-    option.fullscreen = true
+    option.fullscreen = false
+
+    option.scale = 1
+    option.goodScale = false
 
     -- Player variables
     ply.score = 0
+    ply.newScore = 0
     ply.destructionSeries = 1 -- Must be at least 1
     ply.shots = 0 -- Number of shots done by the player
     ply.canShoot = os.time() -- Define when the player can shoot
@@ -44,11 +48,27 @@ function love.load()
 
     game.width, game.height = love.window.getMode()
 
+    -- Menu identifier
+    game.play = false
+    game.menu = true
+    game.settings = false
+    game.over = false
+
     if love.system.getOS() == "iOS" or love.system.getOS() == "Android" and love.getVersion() == 11 then
-        game.width, game.height = game.width / 2, game.height / 2
+        game.width, game.height = game.width / option.scale, game.height / option.scale
         game.lessParticles = true
         game.currentOS = "smartphone"
         game.size = (game.width * game.height) * 2
+
+        if not option.goodScale then
+            game.menu = false
+
+            local buttonHeight = game.height / 6
+            local buttonWidth = game.width / 4
+
+            yes = newButton(game.width / 2 - buttonWidth / 2, game.height / 2 + buttonHeight / 2, buttonWidth, buttonHeight)
+            no = newButton(game.width / 2 - buttonWidth / 2, game.height / 2 - buttonHeight * 1.5, buttonWidth, buttonHeight)
+        end
     else
         love.window.setFullscreen(option.fullscreen)
         game.width, game.height = love.window.getMode()
@@ -62,7 +82,7 @@ function love.load()
     checkboxSize = game.size / 24000
 
     -- Window variables
-    game.xBorder, game.yBorder = game.size / 48000, game.size / 24000
+    game.xBorder, game.yBorder = game.size / 48000, game.size / 18000
 
     Font12 = love.graphics.newFont("data/Montserrat-Regular.ttf", game.size / 40000) -- Font from Google Font
     Font24 = love.graphics.newFont("data/Montserrat-Regular.ttf", game.size / 20000)
@@ -75,19 +95,12 @@ function love.load()
     -- Settings up the window
     love.window.setTitle("Destructive Dot - A game by Quôzul")
 
-    -- Menu identifier
-    game.play = false
-    game.menu = true
-    game.settings = false
-    game.over = false
-
     game.objectsCount = 0
 
     -- Loading sounds
     sounds = {}
     sounds.shoot = love.audio.newSource("data/sounds/shoot.ogg", "stream")
-    sounds.hitWall = love.audio.newSource("data/sounds/wallhit.ogg", "stream")
-    sounds.hitObject = love.audio.newSource("data/sounds/wallhit.ogg", "stream") -- Must be changed
+    sounds.hit = love.audio.newSource("data/sounds/wallhit.ogg", "stream")
     sounds.uiClick = love.audio.newSource("data/sounds/click.ogg", "stream")
     sounds.explosion = love.audio.newSource("data/sounds/explosion.ogg", "stream")
     sounds.objectDestruction = love.audio.newSource("data/sounds/objectdestruction.ogg", "stream")
@@ -95,7 +108,6 @@ function love.load()
     musics = {}
     musics.banane = love.audio.newSource("data/musics/Banane.mp3", "stream")
     musics.framboise = love.audio.newSource("data/musics/Framboise.mp3", "stream")
-    playMusic = 0
 
     -- Loading images
     images = {}
@@ -117,6 +129,7 @@ function love.load()
     back = newButton(game.width - Font12:getWidth("← Back") * 2 - 10, 10, Font12:getWidth("← Back") * 2, Font12:getHeight("← Back") * 2)
 
     -- Sliders
+    -- newSlider(x, y, length, value, min, max, style)
     difficultySlider = newSlider(game.width / 2, game.size / 24000 * 2, game.width / 4, option.objectsLimit, 30, 5, {width=game.size / 24000, orientation='horizontal', track='roundrect', knob='circle'})
     particlesSlider = newSlider(game.width / 2, game.size / 24000 * 4, game.width / 4, option.maxParticles, -1, 150, {width=game.size / 24000, orientation='horizontal', track='roundrect', knob='circle'})
 
@@ -125,15 +138,17 @@ function love.load()
     infiniteParticles = newCheckbox(checkboxSize * 2, game.height / 2)
     fullscreen = newCheckbox(game.width - checkboxSize * 2, game.height / 2)
     showFPS = newCheckbox(game.width - checkboxSize * 2, game.height / 2 + checkboxSize * 2)
+    music = newCheckbox(game.width - checkboxSize * 2, game.height / 2 + checkboxSize * 4)
 
     fullscreen:checkValue(love.window.getFullscreen())
     lessParticles:checkValue(option.lessParticles)
     infiniteParticles:checkValue(option.infiniteParticles)
     showFPS:checkValue(option.showFPS)
+    music:checkValue(option.playMusic)
 end
 
 function love.mousepressed(x, y, button, isTouch)
-    if button == 1 and playerSpeed(0.1) and not game.over and game.play and not game.menu and not isTouch then
+    if button == 1 and playerSpeed(0.1) and not game.over and game.play and not game.menu and not isTouch and objectInReach() then
         local id, px, py = selectClosestObject()
         ply.xs = px - ply.x
         ply.ys = py - ply.y
@@ -147,7 +162,7 @@ function love.mousepressed(x, y, button, isTouch)
 end
 
 function love.mousereleased(x, y, button, isTouch)
-    if button == 1 and playerSpeed(0.1) and not game.over and game.play and not game.menu and isTouch then
+    if button == 1 and playerSpeed(0.1) and not game.over and game.play and not game.menu and isTouch and objectInReach() then
         local id, px, py = selectClosestObject()
         ply.xs = px - ply.x
         ply.ys = py - ply.y
@@ -168,6 +183,8 @@ function love.keypressed(key, scancode, isrepeat)
             game.settings, game.menu = false, true
         elseif game.menu then
             love.event.quit()
+        elseif not game.play and not game.menu and not game.settings then
+            love.event.quit()
         end
     end
 end
@@ -184,13 +201,16 @@ function love.update(dt)
 
         if not game.play and game.menu and not game.settings then menuUpdate()
         elseif game.play then gameUpdate()
-        elseif not game.play and not game.menu and game.settings then settingsUpdate() end
+        elseif not game.play and not game.menu and game.settings then settingsUpdate()
+        elseif not game.play and not game.menu and not game.settings then scalingProblemsUpdate() end
         if game.over then gameOver() end
     end
 
-    if love.audio.getActiveSourceCount() == 0 and option.playMusic then
-        playMusic = playMusic + 1
-    else playMusic = 0 end
+    if love.getVersion() == 11 then
+        if love.audio.getActiveSourceCount() == 0 and option.playMusic then
+            playMusic = playMusic + 1
+        else playMusic = 0 end
+    end
 
     if playMusic >= 20 then
         local r = love.math.random(0, 1)
@@ -221,16 +241,18 @@ function love.draw()
         drawGame()
     elseif not game.play and not game.menu and game.settings then
         settingsDraw()
+    elseif not game.play and not game.menu and not game.settings then
+        scalingProblemsDraw()
     end
     if game.over and not game.menu and not game.settings then
         drawGameOver()
     end
 
     love.graphics.setColor(1, 1, 1)
-    if love.system.getOS() == "Windows" or love.system.getOS() == "Linux" or love.system.getOS() == "OS X" then
+    --if love.system.getOS() == "Windows" or love.system.getOS() == "Linux" or love.system.getOS() == "OS X" then
         local d = game.size / 1920000
         love.graphics.draw(images.cursor, love.mouse.getX() - images.cursor:getWidth() / 2 * d, love.mouse.getY() - images.cursor:getHeight() / 2 * d, 0, d, d)
-    end
+    --end
 
     -- FPS
     if option.showFPS then
