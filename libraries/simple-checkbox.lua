@@ -3,14 +3,13 @@ require "libraries/quozul-tools"
 local checkbox = {}
 checkbox.__index = checkbox
 
-local checkboxSize = 20
-
 function newCheckbox(x, y)
     local c = {}
     c.x = x
     c.y = y
 
     c.value = false
+    c.changed = false
 
     return setmetatable(c, checkbox)
 end
@@ -18,8 +17,11 @@ end
 function checkbox:update()
     if click.isNew() and buttonHover(self.x, self.y, checkboxSize, checkboxSize) then
         self.value = not self.value
+        self.changed = true
         love.audio.stop(sounds.uiClick)
         love.audio.play(sounds.uiClick)
+    else
+        self.changed = false
     end
 end
 
@@ -39,6 +41,8 @@ function checkbox:draw(name, pos)
 end
 
 function checkbox:isChecked() return self.value end
+
+function checkbox:asChanged() return self.changed end
 
 function checkbox:checkValue(value)
     if value then

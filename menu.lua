@@ -3,6 +3,31 @@ require "libraries/simple-slider"
 require "libraries/simple-button"
 require "objects"
 
+function scalingProblemsUpdate()
+    no:update()
+    yes:update()
+
+    if no:isPressed() then
+        option.scale = option.scale + 1
+        love.event.quit("restart")
+    elseif yes:isPressed() then
+        option.goodScale = true
+        love.event.quit("restart")
+    end
+end
+
+function scalingProblemsDraw()
+    love.graphics.setFont(Font24)
+
+    local msg = "Is the scaling correct?"
+    love.graphics.print(msg, game.width / 2 - Font24:getWidth(msg) / 2, game.height / 2 - Font24:getHeight(msg) / 2)
+
+    setColorRGB(192, 57, 43)
+    no:draw("No")
+    setColorRGB(241, 196, 15)
+    yes:draw("Yes")
+end
+
 function menuUpdate()
     clearParticles()
 
@@ -35,42 +60,40 @@ function settingsUpdate()
     difficultySlider:update()
     particlesSlider:update()
 
-    fullscreen:update()
+    if game.currentOS ~= "smartphone" then fullscreen:update() end
     lessParticles:update()
     infiniteParticles:update()
     showFPS:update()
     back:update()
+    music:update()
 
-    if game.maxParticles ~= particlesSlider:getValue() then
-        game.maxParticles = particlesSlider:getValue()
-    elseif game.objectsLimit ~= difficultySlider:getValue() then
-        game.objectsLimit = difficultySlider:getValue()
+    if option.maxParticles ~= particlesSlider:getValue() then
+        option.maxParticles = particlesSlider:getValue()
+    elseif option.objectsLimit ~= difficultySlider:getValue() then
+        option.objectsLimit = difficultySlider:getValue()
     end
 
-    if fullscreen:isChecked() then
-        love.window.setFullscreen(true)
-    else
-        love.window.setFullscreen(false)
+    if fullscreen:asChanged() and game.currentOS ~= "smartphone" then option.fullscreen = not option.fullscreen end
+
+    if lessParticles:asChanged() then
+        option.lessParticles = not option.lessParticles
+        if lessParticles:isChecked() then
+            option.infiniteParticles = false
+            infiniteParticles:checkValue(option.infiniteParticles)
+        end
     end
 
-    if lessParticles:isChecked() then
-        game.lessParticles = true
-        game.infiniteParticles = false
-    else
-        game.lessParticles = false
+    if infiniteParticles:asChanged() then
+        option.infiniteParticles = not option.infiniteParticles
+        if infiniteParticles:isChecked() then
+            option.lessParticles = false
+            lessParticles:checkValue(option.lessParticles)
+        end
     end
 
-    if infiniteParticles:isChecked() then
-        game.infiniteParticles = true
-    else
-        game.infiniteParticles = false
-    end
+    if showFPS:asChanged() then option.showFPS = not option.showFPS end
 
-    if showFPS:isChecked() then
-        game.showFPS = true
-    else
-        game.showFPS = false
-    end
+    if music:asChanged() then option.playMusic = not option.playMusic; love.audio.stop() end
 
     if back:isPressed() then
         game.menu = true
@@ -88,8 +111,9 @@ function settingsDraw()
 
     lessParticles:draw("Less particles", "right")
     infiniteParticles:draw("Infinite particles life", "right")
-    fullscreen:draw("Fullscreen (experimental)", "left")
+    if game.currentOS ~= "smartphone" then fullscreen:draw("Fullscreen (need restart)", "left") end
     showFPS:draw("Show FPS", "left")
+    music:draw("Musics", "left")
 
     back:draw("← Back")
 end

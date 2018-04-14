@@ -3,6 +3,7 @@ require "libraries/quozul-tools"
 local objects = {}
 objects.objects = {}
 objects.particles = {}
+objects.points = {}
 
 local objectID = 0
 
@@ -10,16 +11,16 @@ function objectColor()
     local color = "white"
     local points = 1
 
-    if percentage(48) then
-        color, points = "white", 1
-    elseif percentage(24) then
-        color, points = "blue", 2
-    elseif percentage(12) then
-        color, points = "green", 3
+    if percentage(3) then
+        color, points = "red", 5
     elseif percentage(6) then
         color, points = "yellow", 4
-    elseif percentage(3) then
-        color = "red"
+    elseif percentage(12) then
+        color, points = "green", 3
+    elseif percentage(24) then
+        color, points = "blue", 2
+    elseif percentage(100) then
+        color, points = "white", 1
     end
 
     return color, points
@@ -32,7 +33,10 @@ function addObject()
     o.id = objectID
     objectID = objectID + 1
 
+    o.xs, o.ys = 0, 0
+
     o.color, o.points = objectColor()
+    o.hits = o.points
 
     game.objectsCount = game.objectsCount + 1
     table.insert(objects.objects, o)
@@ -57,7 +61,7 @@ function selectClosestObject()
         if objectDistance < closestObject and segmentLengh(ply.x, ply.y, i.x, i.y) <= game.playerReach then
             closestObject = objectDistance
             closestId = i.id
-            cx, cy = i.x + game.objectSize / 2, i.y + game.objectSize / 2
+            cx, cy = i.x, i.y
         end
     end
 
@@ -71,7 +75,13 @@ function drawObjects()
         elseif i.color == "green" then setColorRGB(46, 204, 113)
         elseif i.color == "yellow" then setColorRGB(241, 196, 15)
         elseif i.color == "red" then setColorRGB(192, 57, 43) end
+
         love.graphics.rectangle("fill", i.x, i.y, game.objectSize, game.objectSize)
+
+        -- Debug
+        --love.graphics.setFont(Font12)
+        --love.graphics.setColor(0,0,0)
+        --love.graphics.print(round(i.hits, 2), i.x, i.y)
     end
 end
 
@@ -89,46 +99,85 @@ end
 
 function explosion(x, y)
     for e,i in ipairs(objects.objects) do
-        table.remove(objects.objects, e)
-        game.objectsCount = game.objectsCount - 1
-        ply.score = ply.score + i.points * ply.destructionSeries
+        if segmentLengh(i.x, i.y, x, y) <= game.playerReach * 2 then
+            if math.abs(i.xs + i.ys) < 0.001 then
+                i.xs, i.ys = (i.x - x) / game.playerReach, (i.y - y) / game.playerReach
+            end
 
-        if not game.lessParticles then
-            for n=game.maxParticles / 2,game.maxParticles do
-                addParticles(i.x, i.y, i.color)
+            i.hits = i.hits - 1 - i.points / 2
+
+            if not option.lessParticles then
+                for n=option.maxParticles / 2,option.maxParticles do
+                    addParticles(i.x, i.y, i.color)
+                end
             end
         end
-
-        ply.destructionSeries = ply.destructionSeries + 1
     end
 
-    for n=game.maxParticles,game.maxParticles * 16 do
+    for n=option.maxParticles,option.maxParticles * 16 do
         addParticles(x, y, "red")
     end
 
-    if not game.lessParticles then
-        for n=game.maxParticles,game.maxParticles * 4 do
+    if not option.lessParticles then
+        for n=option.maxParticles,option.maxParticles * 4 do
             addParticles(x, y, "orange")
         end
     end
 end
 
-function removeObject() -- Remove an object on collision
+function updateObjects() -- Remove an object on collision
     for e,i in ipairs(objects.objects) do
-        if CheckCollision(ply.x, ply.y, game.playerRadius*2, game.playerRadius*2, i.x, i.y, game.objectSize, game.objectSize) then
+        if segmentLengh(ply.x + game.playerRadius, ply.y + game.playerRadius, i.x + game.objectSize / 2, i.y + game.objectSize / 2) <= game.playerRadius * 3 then
+            if math.abs(i.xs + i.ys) < 0.001 and math.abs(ply.xs + ply.ys) >= 0.0001 then
+                i.xs, i.ys = ply.xs / 2, ply.ys / 2
+                i.hits = i.hits - 1
+
+                love.audio.stop(sounds.hit)
+                love.audio.play(sounds.hit)
+
+                if not option.lessParticles then
+                    for n=0, option.maxParticles / 4 * i.points do
+                        addParticles(i.x + game.objectSize / 2, i.y + game.objectSize / 2, i.color)
+                    end
+                end
+            end
+
+        else
+            i.xs, i.ys = i.xs / 1.3, i.ys / 1.3
+            i.x, i.y = i.x + i.xs, i.y + i.ys
+        end
+
+        if i.x < game.xBorder then
+            i.xs = -i.xs
+            i.x = game.xBorder
+        elseif i.x + game.objectSize > game.width - game.xBorder then
+            i.xs = -i.xs
+            i.x = game.height - game.xBorder - game.objectSize
+        end
+
+        if i.y < game.yBorder then
+            i.y = -i.ys
+            i.y = game.yBorder
+        elseif i.y + game.objectSize > game.height - game.yBorder then
+            i.y = -i.ys
+            i.y = game.height - game.yBorder - game.objectSize
+        end
+
+        if math.abs(i.xs + i.ys) > i.points * (game.size / 48000) or i.hits <= 0 then
             table.remove(objects.objects, e)
             game.objectsCount = game.objectsCount - 1
 
-            if i.color ~= "red" then
+            if i.color ~= "red" and math.abs(ply.xs + ply.ys) >= 0.01 then
                 ply.score = ply.score + i.points * ply.destructionSeries
+                ply.newScore = ply.newScore + i.points * ply.destructionSeries
 
-                for n=game.maxParticles / 2, game.maxParticles * i.points do
+                for n=0, option.maxParticles * i.points do
                     addParticles(i.x, i.y, i.color)
                 end
 
-                love.audio.stop(sounds.hitObject)
-                love.audio.play(sounds.hitObject)
-            else
+                love.audio.stop(sounds.objectDestruction)
+                love.audio.play(sounds.objectDestruction)
+            elseif i.color == "red" then
                 explosion(i.x, i.y)
 
                 love.audio.stop(sounds.explosion)
@@ -140,13 +189,7 @@ function removeObject() -- Remove an object on collision
     end
 end
 
-function clearObjects()
-    for e,_ in ipairs(objects.objects) do
-        table.remove(objects.objects, e)
-    end
-
-    game.objectsCount = 0
-end
+function clearObjects() for e,_ in ipairs(objects.objects) do table.remove(objects.objects, e) end game.objectsCount = 0 end
 
 function addParticles(x, y, color)
     if love.timer.getFPS() >= 30 then
@@ -155,7 +198,6 @@ function addParticles(x, y, color)
         p.color = color
 
         p.xs, p.ys = randomFloat(-2, 2, 6), randomFloat(-2, 2, 6)
-        p.age = 255
 
         if color == "orange" then
             p.size = game.objectSize / 2
@@ -170,14 +212,14 @@ end
 function updateParticles()
     for e,p in ipairs(objects.particles) do
         p.x, p.y = p.x + p.xs, p.y + p.ys
-        if game.gravity then p.ys = p.ys + 0.01 end
-        if game.lessParticles and not game.infiniteParticles then
-            p.age = p.age - 2
-        elseif not game.infiniteParticles then
-            p.age = p.age - 1
+        if option.gravity then p.ys = p.ys + 0.01 end
+        if option.lessParticles and not option.infiniteParticles then
+            p.size = p.size / 1.01
+        elseif not option.infiniteParticles then
+            p.size = p.size / 1.01
         end
 
-        if not game.lessParticles then
+        if not option.lessParticles then
             if p.x <= game.xBorder or p.x + p.size >= game.width - game.xBorder then p.xs = 0 end
             if p.y <= game.yBorder and not game.gravity or p.y + p.size >= game.height - game.yBorder then p.ys = 0 end
         else
@@ -185,29 +227,21 @@ function updateParticles()
         end
 
         if p.xs == 0 and p.ys == 0 then table.remove(objects.particles, e)
-        elseif not game.infiniteParticles and p.age <= 0 then table.remove(objects.particles, e) end
+        elseif not option.infiniteParticles and p.size <= 0.1 then table.remove(objects.particles, e) end
     end
 end
 
 function drawParticles()
     for _,p in pairs(objects.particles) do
-        if p.color == "white" then setColorRGBa(255, 255, 255, p.age)
-        elseif p.color == "blue" then setColorRGBa(133, 193, 233, p.age)
-        elseif p.color == "green" then setColorRGBa(46, 204, 113, p.age)
-        elseif p.color == "yellow" then setColorRGBa(241, 196, 15, p.age)
-        elseif p.color == "orange" then setColorRGBa(214, 137, 16, p.age / 4)
-        elseif p.color == "red" then setColorRGBa(192, 57, 43, p.age * 2) end
+        if p.color == "white" then setColorRGB(255, 255, 255)
+        elseif p.color == "blue" then setColorRGB(133, 193, 233)
+        elseif p.color == "green" then setColorRGB(46, 204, 113)
+        elseif p.color == "yellow" then setColorRGB(241, 196, 15)
+        elseif p.color == "orange" then setColorRGBa(214, 137, 16, 127)
+        elseif p.color == "red" then setColorRGB(192, 57, 43) end
 
-        if p.color == "orange" then
-            love.graphics.rectangle("fill", p.x, p.y, p.size, p.size)
-        else
-            love.graphics.rectangle("fill", p.x, p.y, p.size, p.size)
-        end
+        love.graphics.rectangle("fill", p.x, p.y, p.size, p.size)
     end
 end
 
-function clearParticles()
-    for e,p in ipairs(objects.particles) do
-        table.remove(objects.particles, e)
-    end
-end
+function clearParticles() for e,p in ipairs(objects.particles) do table.remove(objects.particles, e) end end
