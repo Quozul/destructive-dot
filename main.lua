@@ -151,8 +151,12 @@ end
 
 function onClick()
     local id, px, py = selectClosestObject()
-    ply.xs = px - ply.x
-    ply.ys = py - ply.y
+    speed = segmentLengh(px, py, ply.x, ply.y)
+
+    local a = math.atan2(py - ply.y, px - ply.x)
+
+    ply.xs = math.cos(a) * speed
+    ply.ys = math.sin(a) * speed
 
     ply.canShoot = os.time() + option.playerCooldown
     ply.shots = ply.shots + 1
